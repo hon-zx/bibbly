@@ -110,7 +110,7 @@ export class DemoClarity implements ClarityEngine {
     });
     const f = DEMO_NOTES.followup;
     const clarity: Clarity = {
-      summary: DEMO_NOTES.summary.filter(s => req.final || s.after <= n).map(s => item(s.text)),
+      summary: DEMO_NOTES.summary.filter(s => s.after <= n).map(s => item(s.text)),
       decisions: DEMO_NOTES.decisions.filter(d => d.after <= n).map(d => item(d.text)),
       actions,
       followup: f.after <= n ? { ...item(f.text), when: dueFrom(req.startedAt, f.when).getTime(), durationMin: f.minutes } : null,

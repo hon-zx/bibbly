@@ -13,6 +13,7 @@ describe('languages', () => {
   });
   it('spots Mandarin–English mixing but not Japanese kanji', () => {
     expect(guessMixed('Great. So 我们 lock 两个日期 now')).toEqual(['en', 'zh']);
+    expect(guessMixed('今天主要确认 Nimbus Lite 在新加坡的上市时间')).toBeNull();
     expect(guessMixed('Nimbus Lite の発売日は 12 月です')).toBeNull();
     expect(guessMixed('没问题')).toBeNull();
   });

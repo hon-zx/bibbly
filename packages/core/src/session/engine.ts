@@ -150,7 +150,7 @@ export class LiveSession extends Emitter<SessionEvents> {
     const text = r.text.trim();
     if (!text) return;
     const lang = r.lang ?? guessLang(text, this.cfg.myLang);
-    const langs = r.langs ?? guessMixed(text) ?? undefined;
+    const langs = r.langs ?? (r.lang ? undefined : guessMixed(text) ?? undefined);
     this.addLine({
       t: r.start ?? Math.max(0, this.elapsed() - 2), ...(r.end != null ? { end: r.end } : {}), speaker, channel, text, lang,
       ...(langs ? { langs } : {}), ...(r.confidence != null ? { confidence: r.confidence } : {}),

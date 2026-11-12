@@ -72,12 +72,16 @@ export function guessLang(text: string, fallback: LangCode = 'en'): LangCode {
   return /^(zh|zh-Hant|yue|ja|ko|th|ar|hi|ru)$/.test(fallback) ? 'en' : fallback;
 }
 
-/** Detects Mandarin–English mixing (e.g. "我们 lock 两个日期"). */
+/**
+ * Detects Mandarin–English mixing (e.g. "我们 lock 两个日期"). Capitalised words
+ * such as product or place names ("Nimbus Lite") don't count: mixing shows up
+ * as ordinary lowercase English words inside a Chinese sentence.
+ */
 export function guessMixed(text: string): LangCode[] | null {
   const han = /[一-鿿]/.test(text);
   const kana = /[぀-ヿ]/.test(text);
-  const latinWords = (text.match(/[A-Za-z]{2,}/g) ?? []).length;
-  return han && !kana && latinWords >= 2 ? ['en', 'zh'] : null;
+  const lowerWords = (text.match(/\b[a-z]{2,}\b/g) ?? []).length;
+  return han && !kana && lowerWords >= 2 ? ['en', 'zh'] : null;
 }
 
 /** Label for a detected language, e.g. "Mandarin" or "English + Mandarin". */
