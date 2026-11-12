@@ -16,6 +16,8 @@ export interface StickInfo { protocol: number; hardware: number; firmware: strin
 export interface StickStatus {
   state: number; batteryPct: number | null; charging: boolean; mode: number;
   freeKb: number; totalKb: number; recordings: number; micLevelDb: number; recordingMs: number;
+  /** StatusFlags bits; 0 from firmware that doesn't send them. */
+  flags: number;
 }
 export interface StickRecording { id: number; size: number; startEpochMs: number; durationMs: number; synced: boolean; }
 
@@ -97,8 +99,9 @@ export class StickClient extends Emitter<StickEvents> {
   async status(): Promise<StickStatus> {
     const r = await this.request(Cmd.Status);
     const state = r.u8(), battery = r.u8(), charging = r.u8() === 1, mode = r.u8();
-    return { state, batteryPct: battery === 255 ? null : battery, charging, mode, freeKb: r.u32(), totalKb: r.u32(),
-             recordings: r.u16(), micLevelDb: r.i16() / 10, recordingMs: r.u32() };
+    const freeKb = r.u32(), totalKb = r.u32(), recordings = r.u16(), micLevelDb = r.i16() / 10, recordingMs = r.u32();
+    return { state, batteryPct: battery === 255 ? null : battery, charging, mode, freeKb, totalKb, recordings, micLevelDb,
+             recordingMs, flags: r.remaining ? r.u8() : 0 };
   }
 
   async list(): Promise<StickRecording[]> {

@@ -69,7 +69,8 @@ try {
   await win.screenshot({ path: path.join(shots, 'desktop-tasks.png') });
 
   await win.click('.nav-i:has-text("Bibbly Stick")');
-  const sim = await win.locator('text=Use the simulator').count();
+  await win.waitForSelector('text=Connect over USB', { timeout: 5_000 });
+  const sim = await win.waitForSelector('text=Use the simulator', { timeout: 3_000 }).catch(() => null);
   if (sim) {
     await win.click('text=Use the simulator');
     await win.waitForSelector('.rec-list li', { timeout: 10_000 });

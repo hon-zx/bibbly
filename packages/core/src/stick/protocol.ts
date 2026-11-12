@@ -22,6 +22,10 @@ export const Status = { Ok: 0, BadRequest: 1, NotFound: 2, Busy: 3, IoError: 4, 
 export const DeviceState = { Idle: 0, Streaming: 1, Recording: 2, Syncing: 3, LowBattery: 4, Error: 5 } as const;
 export const DeviceMode = { MeetingMic: 0, PocketRecorder: 1, Room: 2 } as const;
 export const Gesture = { Short: 1, Double: 2, Long: 3 } as const;
+/** Info.caps bits. */
+export const Caps = { UsbMic: 1, Hid: 2, Ble: 4, Encrypted: 8, Battery: 16 } as const;
+/** Status.flags bits (a trailing byte that older firmware may omit). */
+export const StatusFlags = { Muted: 1, ClockSet: 2, Encrypted: 4, Usb: 8, NoStorage: 16 } as const;
 
 export const STATE_NAMES = ['Idle', 'Streaming', 'Recording', 'Syncing', 'Low battery', 'Error'] as const;
 export const MODE_NAMES = ['Meeting mic', 'Pocket recorder', 'Room mode'] as const;

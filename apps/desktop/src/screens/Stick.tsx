@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { MODE_NAMES, STATE_NAMES, StickClient, fmtClock, type StickInfo, type StickRecording, type StickStatus, type StickTransport } from '@bibbly/core';
+import { MODE_NAMES, STATE_NAMES, StatusFlags, StickClient, fmtClock, type StickInfo, type StickRecording, type StickStatus, type StickTransport } from '@bibbly/core';
 import { api } from '../api';
 import { go, toast } from '../store';
 import { SimulatorTransport, WebUsbTransport } from '../stick/transports';
@@ -8,6 +8,8 @@ import { Icon } from '../ui/Icon';
 import { StickArt } from '../ui/Mascot';
 
 interface Conn { client: StickClient; info: StickInfo; kind: 'usb' | 'simulator' }
+
+const fmtKb = (kb: number) => (kb >= 1024 * 1024 ? `${(kb / 1024 / 1024).toFixed(1)} GB` : `${(kb / 1024).toFixed(1)} MB`);
 
 export function StickScreen() {
   const [conn, setConn] = useState<Conn | null>(null);
@@ -82,7 +84,9 @@ export function StickScreen() {
           <section className="stat-grid">
             <div className="stat"><span className="stat-k">State</span><span className="stat-v">{STATE_NAMES[status.state] ?? 'Unknown'}</span><span className="stat-s">{status.recordingMs ? `Recording ${fmtClock(status.recordingMs / 1000)}` : 'Ready'}</span></div>
             <div className="stat"><span className="stat-k">Battery</span><span className="stat-v tnum">{status.batteryPct == null ? 'USB' : `${status.batteryPct}%`}</span><span className="stat-s">{status.charging ? 'Charging' : status.batteryPct == null ? 'Powered over USB' : 'On battery'}</span></div>
-            <div className="stat"><span className="stat-k">Storage</span><span className="stat-v tnum">{(status.freeKb / 1024).toFixed(1)} MB</span><span className="stat-s">free of {(status.totalKb / 1024).toFixed(1)} MB</span></div>
+            <div className="stat"><span className="stat-k">Storage</span>{status.flags & StatusFlags.NoStorage
+              ? <><span className="stat-v">No card</span><span className="stat-s">Insert a microSD card to record</span></>
+              : <><span className="stat-v tnum">{fmtKb(status.freeKb)}</span><span className="stat-s">free of {fmtKb(status.totalKb)}{status.flags & StatusFlags.Encrypted ? ' · encrypted' : ''}</span></>}</div>
             <div className="stat"><span className="stat-k">Mode</span>
               <span className="select"><select aria-label="Stick mode" value={status.mode} onChange={async e => { await conn.client.setMode(Number(e.target.value)); await refresh(conn); }}>
                 {MODE_NAMES.map((m, i) => <option key={m} value={i}>{m}</option>)}</select><Icon n="down" size={16} /></span>
