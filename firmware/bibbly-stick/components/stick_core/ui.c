@@ -47,7 +47,7 @@ uint8_t stick_button_update(stick_button_t *b, bool pressed, uint32_t now_ms) {
 /* ---- Lights ---------------------------------------------------------------- */
 
 static const stick_rgb_t OFF = {0, 0, 0};
-static const stick_rgb_t CORAL = {242, 107, 85}; /* Bibbly's colour, --coral-fill in the apps */
+static const stick_rgb_t LAGOON = {69, 211, 182}; /* Bibbly's colour, --lagoon (dark theme) in the apps */
 static const stick_rgb_t RED = {255, 0, 0};
 static const stick_rgb_t AMBER = {255, 130, 0};
 static const stick_rgb_t GREEN = {0, 210, 80};
@@ -82,7 +82,7 @@ void stick_lights_flash(stick_lights_t *l, uint8_t kind, uint8_t arg, uint32_t n
 }
 
 static stick_rgb_t battery_colour(uint8_t pct) {
-  if (pct == STICK_BATTERY_NONE) return CORAL;
+  if (pct == STICK_BATTERY_NONE) return LAGOON;
   return pct > 50 ? GREEN : pct > 20 ? AMBER : RED;
 }
 
@@ -156,11 +156,11 @@ void stick_lights_render(stick_lights_t *l, uint32_t now, stick_rgb_t eyes[STICK
       return;
     }
     case STICK_STATE_STREAMING:
-      eyes[0] = eyes[1] = l->muted ? scale(RED, 60) : scale(CORAL, 90);
+      eyes[0] = eyes[1] = l->muted ? scale(RED, 60) : scale(LAGOON, 90);
       break;
     default: /* idle */
-      if (l->usb) eyes[0] = eyes[1] = scale(CORAL, 20 + tri(now, 4000) * 100 / 255);
-      else eyes[0] = eyes[1] = blink(now, 120, 5000) ? scale(CORAL, 40) : OFF; /* on battery: a slow "I'm alive" glint */
+      if (l->usb) eyes[0] = eyes[1] = scale(LAGOON, 20 + tri(now, 4000) * 100 / 255);
+      else eyes[0] = eyes[1] = blink(now, 120, 5000) ? scale(LAGOON, 40) : OFF; /* on battery: a slow "I'm alive" glint */
       if (l->usb && l->charging && l->battery != STICK_BATTERY_NONE && ring_n) {
         size_t lit = (ring_n * l->battery + 50) / 100;
         for (size_t i = 0; i < ring_n; i++) ring[i] = i < lit ? scale(GREEN, 40) : OFF;

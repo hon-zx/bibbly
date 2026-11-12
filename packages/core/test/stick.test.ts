@@ -1,10 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { encodeWavIma } from '../src/audio/wav.js';
 import { StickClient, type StickTransport } from '../src/stick/client.js';
-import { Cmd, crc32, encodeFrame, Evt, FrameParser, FrameType, Reader, Status, Writer } from '../src/stick/protocol.js';
+import { Cmd, crc32, encodeFrame, Evt, FrameParser, FrameType, Reader, Status, utf8Fallback, Writer } from '../src/stick/protocol.js';
 import { sine, toInt16 } from './helpers.js';
 
 describe('link framing', () => {
+  it('decodes UTF-8 without TextDecoder', () => {
+    for (const text of ['0.1.0-sim', 'Bibbly café', '会议记录', 'emoji 🙂 ok']) {
+      expect(utf8Fallback(new TextEncoder().encode(text))).toBe(text);
+    }
+    expect(utf8Fallback(Uint8Array.of(0x61, 0xe4, 0xbc))).toBe('a\ufffd');
+  });
   it('uses the standard CRC-32', () => {
     expect(crc32(new TextEncoder().encode('123456789'))).toBe(0xcbf43926);
   });

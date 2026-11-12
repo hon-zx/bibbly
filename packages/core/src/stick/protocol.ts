@@ -109,5 +109,25 @@ export class Reader {
   u64(): number { const lo = this.u32(); const hi = this.u32(); return hi * 2 ** 32 + lo; }
   bytes(n: number): Uint8Array { this.need(n); const x = this.b.slice(this.o, this.o + n); this.o += n; return x; }
   rest(): Uint8Array { return this.bytes(this.remaining); }
-  str(n: number): string { const raw = this.bytes(n); const end = raw.indexOf(0); return new TextDecoder().decode(end >= 0 ? raw.subarray(0, end) : raw); }
+  str(n: number): string { const raw = this.bytes(n); const end = raw.indexOf(0); return utf8(end >= 0 ? raw.subarray(0, end) : raw); }
+}
+
+/** UTF-8 decoding that also works where TextDecoder is missing (some React Native engines). */
+export function utf8(b: Uint8Array): string {
+  return typeof TextDecoder !== 'undefined' ? new TextDecoder().decode(b) : utf8Fallback(b);
+}
+
+/** Minimal UTF-8 decoder; malformed or truncated sequences become U+FFFD. */
+export function utf8Fallback(b: Uint8Array): string {
+  let out = '';
+  for (let i = 0; i < b.length; ) {
+    const c = b[i]!;
+    const n = c < 0x80 ? 0 : c >= 0xf0 ? 3 : c >= 0xe0 ? 2 : c >= 0xc0 ? 1 : -1;
+    if (n < 0 || i + n >= b.length + (n ? 0 : 1)) { out += n === 0 ? String.fromCharCode(c) : '\ufffd'; i += n === 0 ? 1 : Math.max(1, b.length - i); continue; }
+    let cp = n === 0 ? c : c & (0x3f >> n);
+    for (let k = 1; k <= n; k++) cp = (cp << 6) | (b[i + k]! & 0x3f);
+    out += String.fromCodePoint(cp);
+    i += n + 1;
+  }
+  return out;
 }

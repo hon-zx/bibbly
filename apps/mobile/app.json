@@ -1,0 +1,73 @@
+{
+  "expo": {
+    "name": "Bibbly",
+    "slug": "bibbly",
+    "scheme": "bibbly",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "backgroundColor": "#EDF4F1",
+    "ios": {
+      "bundleIdentifier": "app.bibbly.mobile",
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Bibbly listens to the conversation around you to caption and translate it.",
+        "NSBluetoothAlwaysUsageDescription": "Bibbly connects to your Bibbly Stick to sync its recordings."
+      }
+    },
+    "android": {
+      "package": "app.bibbly.mobile",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#EDF4F1"
+      },
+      "permissions": [
+        "RECORD_AUDIO",
+        "POST_NOTIFICATIONS"
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "color": "#0A7A69"
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 180,
+          "backgroundColor": "#EDF4F1",
+          "dark": {
+            "backgroundColor": "#0A1618"
+          }
+        }
+      ],
+      [
+        "react-native-ble-plx",
+        {
+          "isBackgroundEnabled": false,
+          "modes": [],
+          "bluetoothAlwaysPermission": "Bibbly connects to your Bibbly Stick to sync its recordings."
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 26
+          }
+        }
+      ]
+    ],
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "favicon": "./assets/icon.png"
+    }
+  }
+}

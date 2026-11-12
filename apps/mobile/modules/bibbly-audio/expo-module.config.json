@@ -1,0 +1,5 @@
+{
+  "platforms": ["apple", "android"],
+  "apple": { "modules": ["BibblyAudioModule"] },
+  "android": { "modules": ["app.bibbly.audio.BibblyAudioModule"] }
+}

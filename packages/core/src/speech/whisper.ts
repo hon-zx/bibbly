@@ -12,6 +12,12 @@ export interface WhisperConfig {
   model?: string;
   /** Override for tests. */
   fetch?: typeof fetch;
+  /**
+   * Turns a WAV upload into a multipart file value. Browsers and Node send a
+   * Blob (the default); React Native writes the WAV to a file and returns
+   * { uri, name, type }, which its FormData understands.
+   */
+  formFile?: (wav: Uint8Array<ArrayBuffer>, filename: string) => Promise<Blob | { uri: string; name: string; type: string }>;
 }
 
 const NAME_TO_CODE: Record<string, string> = {
@@ -65,7 +71,10 @@ class WhisperStream extends BaseSpeechStream {
   private async transcribe(seg: SpeechSegment): Promise<void> {
     const f = this.cfg.fetch ?? fetch;
     const body = new FormData();
-    body.append('file', new Blob([encodeWavPcm16(seg.samples, this.opts.sampleRate)], { type: 'audio/wav' }), 'utterance.wav');
+    const wav = encodeWavPcm16(seg.samples, this.opts.sampleRate);
+    const file = this.cfg.formFile ? await this.cfg.formFile(wav, 'utterance.wav') : new Blob([wav], { type: 'audio/wav' });
+    if (typeof Blob !== 'undefined' && file instanceof Blob) body.append('file', file, 'utterance.wav');
+    else body.append('file', file as unknown as Blob); // React Native file reference
     body.append('model', this.cfg.model ?? 'whisper-1');
     body.append('response_format', 'verbose_json');
     if (this.opts.phrases?.length) body.append('prompt', this.opts.phrases.join(', ').slice(0, 600));
