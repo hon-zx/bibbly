@@ -1,0 +1,6 @@
+# Bibbly Stick: let the signed-in user open the sync interface (WebUSB, libusb)
+# and the HID interface without root. Install with:
+#   sudo cp 70-bibbly-stick.rules /etc/udev/rules.d/ && sudo udevadm control --reload-rules && sudo udevadm trigger
+# The Bibbly .deb installs this automatically.
+SUBSYSTEM=="usb", ATTRS{idVendor}=="1209", ATTRS{idProduct}=="0001", TAG+="uaccess"
+KERNEL=="hidraw*", ATTRS{idVendor}=="1209", ATTRS{idProduct}=="0001", TAG+="uaccess"

@@ -1,0 +1,104 @@
+menu "Bibbly Stick"
+
+    config BIBBLY_HW_REV
+        int "Hardware revision"
+        default 1
+
+    config BIBBLY_USB_VID
+        hex "USB vendor ID"
+        default 0x1209
+        help
+            0x1209/0x0001 is the pid.codes test pair, fine for development.
+            Use your own allocated IDs before shipping.
+
+    config BIBBLY_USB_PID
+        hex "USB product ID"
+        default 0x0001
+
+    config BIBBLY_PIN_BUTTON
+        int "Button GPIO (active low, must be an RTC GPIO to wake from sleep)"
+        default 0
+
+    config BIBBLY_PIN_LEDS
+        int "WS2812 data GPIO (two eyes, then the ring)"
+        default 48
+
+    config BIBBLY_RING_LEDS
+        int "Lights in the ring around the button"
+        range 0 24
+        default 0
+
+    config BIBBLY_LED_BRIGHTNESS
+        int "Light brightness (percent)"
+        range 5 100
+        default 40
+
+    config BIBBLY_PIN_PDM_CLK
+        int "PDM microphone clock GPIO"
+        default 42
+
+    config BIBBLY_PIN_PDM_DATA
+        int "PDM microphone data GPIO"
+        default 41
+
+    config BIBBLY_MIC_PAIR
+        bool "Two PDM microphones (left and right) share the data line"
+        default y
+
+    config BIBBLY_SD
+        bool "microSD card for recordings"
+        default y
+
+    if BIBBLY_SD
+        config BIBBLY_SD_4BIT
+            bool "4-bit SD bus"
+            default y
+        config BIBBLY_PIN_SD_CLK
+            int "SD CLK GPIO"
+            default 14
+        config BIBBLY_PIN_SD_CMD
+            int "SD CMD GPIO"
+            default 15
+        config BIBBLY_PIN_SD_D0
+            int "SD D0 GPIO"
+            default 16
+        config BIBBLY_PIN_SD_D1
+            int "SD D1 GPIO"
+            default 17
+        config BIBBLY_PIN_SD_D2
+            int "SD D2 GPIO"
+            default 18
+        config BIBBLY_PIN_SD_D3
+            int "SD D3 GPIO"
+            default 21
+    endif
+
+    config BIBBLY_BATTERY
+        bool "Battery fitted"
+        default y
+
+    if BIBBLY_BATTERY
+        config BIBBLY_PIN_BATT_ADC
+            int "Battery voltage GPIO (ADC1)"
+            default 1
+        config BIBBLY_BATT_DIVIDER_X100
+            int "Battery divider ratio x100 (200 = 1:2)"
+            default 200
+        config BIBBLY_PIN_CHG_STAT
+            int "Charger status GPIO (low while charging), -1 if none"
+            default 4
+    endif
+
+    config BIBBLY_PIN_VBUS
+        int "USB power sense GPIO (high when plugged in, RTC GPIO), -1 if none"
+        default 2
+
+    config BIBBLY_BLE
+        bool "Bluetooth LE sync with the phone app"
+        default y
+
+    config BIBBLY_SLEEP_MINUTES
+        int "Sleep after this many idle minutes on battery"
+        default 10
+
+endmenu

@@ -24,7 +24,7 @@ win:
 linux:
   target: [AppImage, deb]
   category: Office
-  maintainer: Bibbly <hello@bibbly.app>
+  maintainer: Bibbly <maintainers@example.com> # replace before publishing
 deb:
   # Lets the Bibbly Stick's sync interface be opened without root.
   afterInstall: resources/linux/after-install.sh

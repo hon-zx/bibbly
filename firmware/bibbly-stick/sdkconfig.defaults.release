@@ -1,0 +1,14 @@
+# Production hardening, layered on sdkconfig.defaults:
+#   idf.py -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.defaults.release" build
+#
+# Flash encryption protects the app, the settings and the recording key in
+# NVS (nvs_keys partition); secure boot only runs firmware signed with your
+# key. Both burn eFuses and cannot be undone: rehearse the factory process on
+# sample boards with your manufacturing partner before enabling.
+CONFIG_SECURE_FLASH_ENC_ENABLED=y
+CONFIG_SECURE_FLASH_ENCRYPTION_MODE_RELEASE=y
+CONFIG_NVS_ENCRYPTION=y
+CONFIG_SECURE_BOOT=y
+CONFIG_SECURE_BOOT_V2_ENABLED=y
+CONFIG_SECURE_BOOT_SIGNING_KEY="secure_boot_signing_key.pem"
+CONFIG_LOG_DEFAULT_LEVEL_WARN=y
