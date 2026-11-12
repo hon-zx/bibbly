@@ -1,0 +1,25 @@
+{
+  "name": "bibbly",
+  "private": true,
+  "description": "Bibbly: live multilingual captions, meeting clarity, tasks and the Bibbly Stick.",
+  "workspaces": [
+    "packages/*",
+    "apps/server",
+    "apps/desktop"
+  ],
+  "scripts": {
+    "build": "npm run build -w @bibbly/core && npm run build -w @bibbly/server && npm run build -w @bibbly/desktop",
+    "test": "npm run test -w @bibbly/core && npm run test -w @bibbly/server",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "firmware:test": "cmake -S firmware/bibbly-stick/host -B build/firmware-host -G Ninja && cmake --build build/firmware-host && ctest --test-dir build/firmware-host --output-on-failure"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "typescript": "6.0.3",
+    "vite": "8.3.5",
+    "vitest": "5.0.5"
+  }
+}

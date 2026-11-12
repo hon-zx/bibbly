@@ -1,0 +1,22 @@
+node_modules/
+dist/
+dist-electron/
+release/
+build/
+coverage/
+*.log
+.DS_Store
+.env
+.env.*
+!.env.example
+# Expo / React Native
+apps/mobile/.expo/
+apps/mobile/ios/
+apps/mobile/android/
+apps/mobile/dist/
+# ESP-IDF
+firmware/bibbly-stick/build/
+firmware/bibbly-stick/sdkconfig
+firmware/bibbly-stick/sdkconfig.old
+firmware/bibbly-stick/managed_components/
+firmware/bibbly-stick/dependencies.lock
