@@ -12,6 +12,7 @@ export const atTime = (d: Date | number, hhmm: string): Date => {
 export const weekStart = (d: Date | number): Date => { const x = startOfDay(d); return addDays(x, -((x.getDay() + 6) % 7)); };
 export const pad2 = (n: number): string => String(n).padStart(2, '0');
 export const isoDay = (d: Date | number): string => { const x = new Date(d); return `${x.getFullYear()}-${pad2(x.getMonth() + 1)}-${pad2(x.getDate())}`; };
+export const sameDay = (a: Date | number, b: Date | number): boolean => isoDay(a) === isoDay(b);
 export const hasTime = (d: Date | number): boolean => { const x = new Date(d); return x.getHours() + x.getMinutes() > 0; };
 export const dayDiff = (d: Date | number, now: Date | number = Date.now()): number =>
   Math.round((startOfDay(d).getTime() - startOfDay(now).getTime()) / DAY_MS);

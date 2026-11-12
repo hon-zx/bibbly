@@ -1,0 +1,30 @@
+appId: app.bibbly.desktop
+productName: Bibbly
+copyright: Copyright © 2026 Bibbly
+directories:
+  output: release
+files:
+  - dist/**
+  - dist-electron/**
+  - package.json
+asar: true
+extraResources:
+  - from: resources/
+    to: .
+    filter: ["**/*"]
+mac:
+  category: public.app-category.productivity
+  target: [dmg]
+  hardenedRuntime: true
+  extendInfo:
+    NSMicrophoneUsageDescription: Bibbly listens to your meetings to caption and translate them.
+    NSAudioCaptureUsageDescription: Bibbly captures meeting audio from your computer to caption what other people say.
+win:
+  target: [nsis]
+linux:
+  target: [AppImage, deb]
+  category: Office
+  maintainer: Bibbly <hello@bibbly.app>
+deb:
+  # Lets the Bibbly Stick's sync interface be opened without root.
+  afterInstall: resources/linux/after-install.sh

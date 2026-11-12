@@ -102,13 +102,13 @@ export class LiveSession extends Emitter<SessionEvents> {
   get targetLanguages(): LangCode[] { return [...this.targets.keys()]; }
 
   /** Starts a speech stream for a channel. */
-  async attach(channel: Channel, provider: SpeechProvider, opts: { diarize?: boolean; speaker?: SpeakerRef } = {}): Promise<void> {
+  async attach(channel: Channel, provider: SpeechProvider, opts: { diarize?: boolean; speaker?: SpeakerRef; speakers?: Record<string, SpeakerRef> } = {}): Promise<void> {
     if (this.channels.has(channel)) await this.detach(channel);
     const stream = await provider.start({
       sampleRate: 16_000, candidateLanguages: this.cfg.candidateLanguages, diarize: !!opts.diarize, phrases: this.cfg.glossary ?? [],
     });
     const fallback = opts.speaker ?? (channel === 'mic' || channel === 'stick' ? this.cfg.me : { id: `${channel}`, name: 'Meeting audio' });
-    const state: ChannelState = { stream, speakers: new Map(), fallback, detects: provider.detectsLanguage, unsubs: [] };
+    const state: ChannelState = { stream, speakers: new Map(Object.entries(opts.speakers ?? {})), fallback, detects: provider.detectsLanguage, unsubs: [] };
     state.unsubs.push(stream.onResult(r => this.onResult(channel, state, r)));
     state.unsubs.push(stream.onError(e => this.emit('error', { source: 'speech', message: e.message, cause: e })));
     this.channels.set(channel, state);
@@ -132,7 +132,7 @@ export class LiveSession extends Emitter<SessionEvents> {
     if (!speakerId) return st.fallback;
     let s = st.speakers.get(speakerId);
     if (!s) {
-      const n = st.speakers.size + 1;
+      const n = [...st.speakers.values()].filter(v => /^(Guest|Speaker) \d+$/.test(v.name)).length + 1;
       const base = channel === 'system' ? 'Guest' : 'Speaker';
       s = channel === 'mic' && n === 1 && st.fallback.self ? st.fallback : { id: `${channel}:${speakerId}`, name: `${base} ${n}` };
       st.speakers.set(speakerId, s);

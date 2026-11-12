@@ -74,3 +74,19 @@ describe('LiveSession', () => {
     s.dispose();
   });
 });
+
+describe('demo engines', () => {
+  it('serve baked translations and growing notes without any API key', async () => {
+    const { DemoTranslator, DemoClarity } = await import('../src/demo.js');
+    const s = new LiveSession({ me: { id: 'me', name: 'Alex', self: true }, myLang: 'ja', candidateLanguages: [], autoClarityEvery: 0 },
+                              { translator: new DemoTranslator(), clarity: new DemoClarity() });
+    DEMO_MEETING.lines.forEach((l, i) => s.addLine({ t: l.t, speaker: { id: l.speaker, name: l.speaker }, channel: 'demo', text: l.text, lang: l.lang, ...(l.langs ? { langs: l.langs } : {}), confidence: l.confidence, id: `d${i + 1}` }));
+    await new Promise(r => setTimeout(r, 300));
+    expect(s.lines[1]!.tr.ja).toContain('シンガポール側は準備ができています');
+    await s.stop();
+    expect(s.title).toBe(DEMO_MEETING.title);
+    expect(s.clarity?.actions).toHaveLength(5);
+    expect(s.clarity?.actions.find(a => a.ownerIsMe)?.lineId).toBe('d8');
+    expect(s.clarity?.followup?.text.ja).toBe('パッケージ最終確認');
+  });
+});

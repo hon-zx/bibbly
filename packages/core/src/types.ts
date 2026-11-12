@@ -82,6 +82,10 @@ export interface Note {
   lines: Line[];
   clarity: Clarity | null;
   sentTo: string[];
+  /** Original audio kept on this device (Stick imports). */
+  audioFile?: string;
+  /** Why a recording has no transcript yet, e.g. no speech engine configured. */
+  pendingReason?: string;
 }
 
 export type TaskList = 'Work' | 'Personal' | 'Home';
