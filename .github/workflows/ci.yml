@@ -1,0 +1,92 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  firmware-host:
+    name: Stick firmware logic (host tests + simulator)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y ninja-build libmbedtls-dev
+      - run: npm run firmware:test
+      - uses: actions/upload-artifact@v4
+        with:
+          name: stick-sim
+          path: build/firmware-host/stick-sim
+
+  apps:
+    name: Core, server and desktop
+    needs: firmware-host
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/download-artifact@v4
+        with:
+          name: stick-sim
+          path: build/firmware-host
+      - run: chmod +x build/firmware-host/stick-sim
+      - run: npm ci
+      - run: npm run build -w @bibbly/core
+      - run: npm run typecheck
+      # Includes the TypeScript <-> firmware tests that drive stick-sim.
+      - run: npm test
+      - run: npm run build
+      - name: Desktop end-to-end (Electron under Xvfb)
+        run: |
+          npm install --no-save playwright@1.63.0
+          npm run e2e -w @bibbly/desktop
+        env:
+          BIBBLY_SHOTS: ${{ runner.temp }}/desktop-shots
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: desktop-screenshots
+          path: ${{ runner.temp }}/desktop-shots
+          if-no-files-found: ignore
+
+  mobile:
+    name: Mobile (type-check, native bundles, UI check)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            apps/mobile/package-lock.json
+      - run: npm ci
+      - run: npm run build -w @bibbly/core
+      - working-directory: apps/mobile
+        run: npm ci
+      - working-directory: apps/mobile
+        run: npm run typecheck
+      - working-directory: apps/mobile
+        run: npm run bundle
+        env:
+          EXPO_NO_TELEMETRY: 1
+      - working-directory: apps/mobile
+        run: |
+          npm install --no-save playwright@1.63.0
+          npx playwright install --with-deps chromium
+          npm run e2e
+        env:
+          EXPO_NO_TELEMETRY: 1
+          BIBBLY_SHOTS: ${{ runner.temp }}/mobile-shots
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mobile-screenshots
+          path: ${{ runner.temp }}/mobile-shots
+          if-no-files-found: ignore

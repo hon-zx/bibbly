@@ -1,0 +1,33 @@
+name: Mobile builds (EAS)
+
+# Runs on demand. Needs an EXPO_TOKEN repository secret and `eas init` run once
+# in apps/mobile to link the project to your Expo account.
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: android, ios or all
+        default: android
+      profile:
+        description: development, preview or production
+        default: preview
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci && npm run build -w @bibbly/core
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - working-directory: apps/mobile
+        run: npm ci && eas build --platform ${{ inputs.platform }} --profile ${{ inputs.profile }} --non-interactive --no-wait

@@ -1,0 +1,38 @@
+name: Firmware (ESP32-S3)
+
+on:
+  push:
+    paths: ['firmware/**', '.github/workflows/firmware.yml']
+  pull_request:
+    paths: ['firmware/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: TinyUSB present
+        run: |
+          test -f firmware/bibbly-stick/third_party/tinyusb/src/tusb.c || {
+            echo "::error::TinyUSB 0.21.0 is missing. Add it as a submodule; see firmware/bibbly-stick/README.md."
+            exit 1
+          }
+      - uses: espressif/esp-idf-ci-action@v1
+        with:
+          esp_idf_version: v5.5.6
+          target: esp32s3
+          path: firmware/bibbly-stick
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bibbly-stick-firmware
+          path: |
+            firmware/bibbly-stick/build/bibbly-stick.bin
+            firmware/bibbly-stick/build/bootloader/bootloader.bin
+            firmware/bibbly-stick/build/partition_table/partition-table.bin
+            firmware/bibbly-stick/build/flasher_args.json
