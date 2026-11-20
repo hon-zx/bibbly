@@ -1,0 +1,7 @@
+{
+  "//": "Everything except src/node.ts and src/testing must run in React Native and browsers too: no Node types here.",
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": { "noEmit": true, "types": [] },
+  "include": ["src"],
+  "exclude": ["src/node.ts", "src/testing"]
+}

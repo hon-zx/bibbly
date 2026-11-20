@@ -21,7 +21,7 @@ jobs:
           path: build/firmware-host/stick-sim
 
   apps:
-    name: Core, server and desktop
+    name: Core, connectors, server and desktop
     needs: firmware-host
     runs-on: ubuntu-24.04
     steps:
@@ -36,9 +36,10 @@ jobs:
           path: build/firmware-host
       - run: chmod +x build/firmware-host/stick-sim
       - run: npm ci
-      - run: npm run build -w @bibbly/core
+      - run: npm run build:libs
       - run: npm run typecheck
-      # Includes the TypeScript <-> firmware tests that drive stick-sim.
+      # Includes the TypeScript <-> firmware tests that drive stick-sim, and the
+      # connector tests against fake Google, Microsoft, Slack, Notion and Lark servers.
       - run: npm test
       - run: npm run build
       - name: Desktop end-to-end (Electron under Xvfb)
@@ -67,7 +68,9 @@ jobs:
             package-lock.json
             apps/mobile/package-lock.json
       - run: npm ci
-      - run: npm run build -w @bibbly/core
+      - run: npm run build:libs
+      # The phone e2e signs in through a local Bibbly server.
+      - run: npm run build -w @bibbly/server
       - working-directory: apps/mobile
         run: npm ci
       - working-directory: apps/mobile

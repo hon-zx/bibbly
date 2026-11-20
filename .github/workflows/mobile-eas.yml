@@ -24,7 +24,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm ci && npm run build -w @bibbly/core
+      - run: npm ci && npm run build:libs
       - uses: expo/expo-github-action@v8
         with:
           eas-version: latest

@@ -86,6 +86,27 @@ export interface Note {
   audioFile?: string;
   /** Why a recording has no transcript yet, e.g. no speech engine configured. */
   pendingReason?: string;
+  /** Where the note was sent through connected apps (Notion page, Slack message...). */
+  shared?: SharedCopy[];
+}
+
+/** Connected apps Bibbly can sync with (see @bibbly/connectors). */
+export type ProviderId = 'google' | 'microsoft' | 'slack' | 'notion' | 'lark';
+
+/** A copy of a note in a connected app. */
+export interface SharedCopy {
+  provider: ProviderId;
+  /** Human-readable destination, e.g. "#product" or "Meeting notes". */
+  target: string;
+  url?: string;
+  at: number;
+}
+
+/** Where a synced task or event lives in a connected app. */
+export interface ExternalRef {
+  provider: ProviderId;
+  accountId: string;
+  url?: string;
 }
 
 export type TaskList = 'Work' | 'Personal' | 'Home';
@@ -101,6 +122,12 @@ export interface Task {
   doneAt?: number | null;
   repeat?: string;
   source?: { noteId: string; lineId?: string; actionId?: string };
+  /** Free-form details (synced as the task's notes in connected apps). */
+  notes?: string;
+  /** Epoch milliseconds of the last change on this device; drives two-way sync. */
+  updatedAt?: number;
+  /** Connected apps this task is synced with. */
+  synced?: ExternalRef[];
 }
 
 export type Platform = 'zoom' | 'teams' | 'meet' | 'lark' | 'in-person' | 'other';
@@ -116,4 +143,13 @@ export interface CalendarEvent {
   attendees?: string;
   noteId?: string;
   prevNoteId?: string;
+  location?: string;
+  /** Join link for online meetings. */
+  meetUrl?: string;
+  description?: string;
+  allDay?: boolean;
+  /** Epoch milliseconds of the last change on this device. */
+  updatedAt?: number;
+  /** Set when the event comes from (or was saved to) a connected calendar. */
+  source?: ExternalRef & { calendarId: string; eventId: string; readOnly?: boolean };
 }
