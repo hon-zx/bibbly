@@ -22,7 +22,9 @@ target_compile_options(stick_core PRIVATE ${STICK_WARNINGS})
 # copy bundled with ESP-IDF when IDF_PATH is set. Without either, the
 # simulator keeps recordings as plain WAV files, like a build without AES.
 find_path(MBEDTLS_INCLUDE_DIR mbedtls/aes.h)
-find_library(MBEDCRYPTO_LIBRARY mbedcrypto)
+# Prefer the static library: stick-sim is built once in CI and run on other
+# machines (the apps job, the desktop app), which may not have mbedTLS installed.
+find_library(MBEDCRYPTO_LIBRARY NAMES libmbedcrypto.a mbedcrypto)
 if(DEFINED ENV{IDF_PATH})
   set(STICK_IDF_MBEDTLS "$ENV{IDF_PATH}/components/mbedtls/mbedtls" CACHE PATH "mbedTLS sources inside ESP-IDF")
 endif()
