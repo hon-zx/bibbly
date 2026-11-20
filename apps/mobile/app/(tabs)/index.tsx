@@ -10,6 +10,7 @@ import {
 import { useData } from '../../src/store';
 import { useTheme } from '../../src/theme';
 import { CaptionRow, ClarityView, PartialRow, useSpeakerColors } from '../../src/ui/captions';
+import { UpNextCard } from '../../src/ui/apps';
 import { Banner, Body, Button, Card, Chip, Field, H2, IconButton, Row, Title } from '../../src/ui/kit';
 import { Mascot } from '../../src/ui/Mascot';
 
@@ -77,6 +78,7 @@ export default function LiveScreen() {
           </View>
           <Button kind="primary" icon="mic" label="Start listening" onPress={() => void startLive('mic')} />
           <Button kind="soft" icon="play" label="Play the demo meeting" onPress={() => void startLive('demo')} />
+          <UpNextCard />
           <Card>
             <H2>Join a meeting</H2>
             <Body muted small>Someone is captioning on Bibbly for desktop? Enter their room code to read along in your language.</Body>

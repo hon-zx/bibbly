@@ -14,6 +14,7 @@ import { PermissionsAndroid, Platform } from 'react-native';
 import { addErrorListener, addFramesListener, micAvailable, startMic, stopMic } from '../modules/bibbly-audio';
 import { pcmFromBase64 } from './base64';
 import { claude, NO_SPEECH_ENGINE, speechProvider } from './services';
+import { autoPublish } from './connectors';
 import { getData, saveNote } from './store';
 
 export type LiveMode = 'mic' | 'demo' | 'room';
@@ -207,6 +208,8 @@ export async function stopLive(): Promise<Note | null> {
   await teardown();
   if (note) saveNote(note);
   set({ ...initial(), lastNoteId: note?.id ?? null, notice: state.notice });
+  // Send the note wherever "Send every note" is on (Slack, Notion, Google Docs, Teams, Lark).
+  if (note) void autoPublish(note).then(msg => { if (msg) set({ notice: msg }); });
   return note;
 }
 

@@ -7,6 +7,7 @@ import { actionInTasks, addActionToTasks, deleteNote, needsTranslation, translat
 import { SHARE_FORMATS, shareNote } from '../../src/share';
 import { useData } from '../../src/store';
 import { useTheme } from '../../src/theme';
+import { SendToCard } from '../../src/ui/apps';
 import { CaptionRow, ClarityView, useSpeakerColors } from '../../src/ui/captions';
 import { Icon } from '../../src/ui/Icon';
 import { Banner, Body, Button, Card, Chip, Empty, H2, Row } from '../../src/ui/kit';
@@ -80,9 +81,11 @@ export default function NoteScreen() {
         </Card>
       ) : null}
 
+      <SendToCard note={note} lang={lang} />
+
       <Card>
         <H2>Share</H2>
-        <Body muted small>Opens the share sheet, so you can send it to Teams, Slack, Notion, Lark, Google Drive or email.</Body>
+        <Body muted small>Or open the share sheet to send a file to any app or to email.</Body>
         {SHARE_FORMATS.map(f => (
           <Pressable key={f.id} accessibilityRole="button" accessibilityLabel={`Share as ${f.label}`} onPress={() => void share(f.id)} style={styles.action} disabled={!!busy}>
             <Icon n="share" color={t.lagoon} size={18} />

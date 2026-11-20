@@ -1,7 +1,12 @@
 // UI check of the phone app in its browser preview, at phone size (run: npm run e2e).
 // Plays the demo meeting, switches the caption language, waits for Clarity notes,
-// saves the note, adds a task and visits every tab. Bluetooth and the microphone
-// are native-only, so they are covered by device testing, not here.
+// saves the note, adds a task and visits every tab. Then connects Slack and Google
+// through a local Bibbly server (the sign-in broker) against fake provider servers:
+// tasks sync to Google Tasks, Google Calendar meetings show up, and a note goes to
+// Slack. Bluetooth and the microphone are native-only, so they are covered by
+// device testing, not here.
+import { endpointsAt } from '@bibbly/connectors';
+import { startFakes } from '@bibbly/connectors/testing';
 import { createRequire } from 'node:module';
 import fs from 'node:fs';
 import http from 'node:http';
@@ -25,11 +30,27 @@ const server = http.createServer((req, res) => {
 const url = `http://localhost:${server.address().port}/`;
 const step = s => console.log(`✓ ${s}`);
 
+// Fake Google and Slack, and a Bibbly server whose sign-in broker uses them. The preview build
+// sends provider calls to this port (EXPO_PUBLIC_BIBBLY_PROVIDER_BASE_URL in the e2e script).
+const fake = await startFakes({ port: 47123 });
+const here = path.dirname(fileURLToPath(import.meta.url));
+const { startServer } = await import(path.resolve(here, '../../server/dist/server.js'));
+const bibbly = await startServer({
+  port: 0, host: '127.0.0.1', translator: null,
+  oauth: { clients: { google: { clientId: 'g-web', clientSecret: 'g-web-secret' }, slack: { clientId: 'slack-client', clientSecret: 'slack-secret' } }, endpoints: endpointsAt(fake.url) },
+});
+const soon = new Date(Date.now() + 60 * 60_000);
+fake.google.events.set('ev-vendor', { id: 'ev-vendor', etag: '"1"', summary: 'Vendor call', hangoutLink: 'https://meet.google.com/abc-defg-hij',
+  start: { dateTime: soon.toISOString() }, end: { dateTime: new Date(soon.getTime() + 30 * 60_000).toISOString() } });
+
 const browser = await playwright.chromium.launch();
 try {
   const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
   const errors = [];
+  const clues = (globalThis.__clues = []);
   page.on('pageerror', e => errors.push(e.message));
+  page.on('console', m => { if (m.type() === 'error' || m.type() === 'warning') clues.push(`console ${m.type()}: ${m.text().slice(0, 300)}`); });
+  page.on('popup', p => { clues.push(`popup opened: ${p.url()}`); p.on('framenavigated', f => { if (f === p.mainFrame()) clues.push(`popup at: ${f.url().slice(0, 160)}`); }); p.on('close', () => clues.push('popup closed')); });
   await page.goto(url);
   await page.getByText('Live captions').first().waitFor({ timeout: 30_000 });
   step('Live tab');
@@ -68,10 +89,48 @@ try {
   await page.getByText('Settings').last().click();
   await page.getByText('You and your languages').waitFor({ timeout: 5_000 });
   step('Stick and Settings tabs');
+
+  // Connected apps through the Bibbly server: each sign-in runs in a popup and returns to /oauth.
+  await page.getByLabel('Server address').fill(`http://127.0.0.1:${bibbly.port}`);
+  const slack = page.getByTestId('app-slack');
+  await slack.getByRole('button', { name: 'Connect' }).click({ timeout: 10_000 });
+  await page.getByText('Acme (Slack)').waitFor({ timeout: 20_000 });
+  step('Slack connected through the Bibbly server');
+  await page.getByTestId('app-google').getByRole('button', { name: 'Connect' }).click();
+  await page.getByText('ada@example.com').waitFor({ timeout: 20_000 });
+  await page.getByTestId('app-google').getByText('Synced', { exact: false }).waitFor({ timeout: 20_000 });
+  const gTitles = [...fake.google.tasks.values()].flat().map(t => t.title);
+  if (!gTitles.includes('Send deck to Li Wei')) throw new Error(`the new task did not reach Google Tasks: ${JSON.stringify(gTitles)}`);
+  if (gTitles.some(t => /Try the demo|Claude API key/.test(t))) throw new Error('welcome tasks should stay on the phone');
+  if (fake.google.tokenRequests.at(-1)?.client_secret !== 'g-web-secret') throw new Error('the client secret should only be used by the server');
+  await page.screenshot({ path: path.join(shots, 'apps.png') });
+  step('Google connected; tasks synced to Google Tasks');
+
+  await page.getByText('Live').last().click();
+  await page.getByText('Up next').waitFor({ timeout: 10_000 });
+  await page.getByText('Vendor call').waitFor({ timeout: 5_000 });
+  step('Google Calendar meetings show on the Live tab');
+
+  await page.getByText('Notes').last().click();
+  await page.getByText('Q4 launch sync', { exact: false }).first().click();
+  const send = page.getByTestId('send-slack');
+  await send.getByRole('button', { name: '#general' }).click({ timeout: 10_000 });
+  await send.getByRole('button', { name: 'Send' }).click();
+  await page.getByText('Sent to #general.').waitFor({ timeout: 10_000 });
+  if (fake.slack.messages[0]?.channel !== 'C1') throw new Error('the note did not reach Slack #general');
+  await page.screenshot({ path: path.join(shots, 'send.png') });
+  step('note sent to Slack #general');
   if (errors.length) throw new Error(`page errors:\n${errors.join('\n')}`);
   step('no page errors');
   console.log(`screenshots in ${shots}`);
+} catch (err) {
+  const page = browser.contexts()[0]?.pages()[0];
+  if (page) await page.screenshot({ path: path.join(shots, 'failure.png') }).catch(() => {});
+  console.error(['what happened:', ...(globalThis.__clues ?? []), `fake provider requests: ${fake.log.slice(-12).join(' | ')}`].join('\n  '));
+  throw err;
 } finally {
   await browser.close();
   server.close();
+  await bibbly.close();
+  await fake.close();
 }

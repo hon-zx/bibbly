@@ -1,10 +1,11 @@
 /**
- * The phone's saved data (notes, tasks, settings) in one object, persisted to
- * AsyncStorage. API keys never go here: see secrets.ts.
+ * The phone's saved data (notes, tasks, calendar events from connected apps,
+ * settings) in one object, persisted to AsyncStorage. API keys and sign-ins
+ * never go here: see secrets.ts and connectors.ts.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DEFAULT_CLAUDE_MODEL } from '@bibbly/core/claude';
-import { addDays, atTime, startOfDay, type LangCode, type Note, type Task } from '@bibbly/core';
+import { addDays, atTime, startOfDay, type CalendarEvent, type LangCode, type Note, type Task } from '@bibbly/core';
 import { useSyncExternalStore } from 'react';
 import { getLocales } from 'expo-localization';
 
@@ -19,6 +20,7 @@ export interface Settings {
   engine: EngineId;
   whisperUrl: string;
   claudeModel: string;
+  /** Bibbly server (apps/server): rooms, and sign-in for connected apps. */
   roomServer: string;
   glossary: string[];
 }
@@ -27,6 +29,8 @@ export interface AppData {
   version: 1;
   notes: Note[];
   tasks: Task[];
+  /** Meetings from connected calendars, and follow-ups saved to them. */
+  events: CalendarEvent[];
   settings: Settings;
 }
 
@@ -51,7 +55,7 @@ function firstRun(): AppData {
     { id: 'welcome-1', title: 'Try the demo meeting on the Live tab', list: 'Personal', due: null, remind: false, done: false },
     { id: 'welcome-2', title: 'Add your Claude API key in Settings for translations', list: 'Personal', due: atTime(addDays(today, 1), '10:00').getTime(), remind: false, done: false },
   ];
-  return { version: 1, notes: [], tasks, settings: { ...DEFAULT_SETTINGS, myLang } };
+  return { version: 1, notes: [], tasks, events: [], settings: { ...DEFAULT_SETTINGS, myLang } };
 }
 
 let data: AppData = firstRun();
@@ -64,7 +68,7 @@ export async function hydrate(): Promise<void> {
     const raw = await AsyncStorage.getItem(KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as AppData;
-      if (parsed?.version === 1) data = { ...parsed, settings: { ...DEFAULT_SETTINGS, ...parsed.settings } };
+      if (parsed?.version === 1) data = { ...parsed, events: parsed.events ?? [], settings: { ...DEFAULT_SETTINGS, ...parsed.settings } };
     }
   } catch (err) {
     console.warn('[bibbly] could not read saved data, starting fresh', err);
@@ -81,6 +85,8 @@ function subscribe(cb: () => void) {
 }
 
 export const getData = (): AppData => data;
+/** Called after every change (connected-app sync uses it to notice task edits). */
+export const onDataChange = (cb: () => void): (() => void) => subscribe(cb);
 export const isReady = (): boolean => ready;
 
 export function update(patch: Partial<AppData> | ((d: AppData) => Partial<AppData>)): void {
