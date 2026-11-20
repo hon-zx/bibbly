@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
 import { langNative, type LangCode } from '@bibbly/core';
 import { api } from '../api';
-import { saveSettings, setState, toast, useApp } from '../store';
+import { refreshConnectors, saveSettings, setState, toast, useApp } from '../store';
 import type { SecretName } from '../shared/ipc';
 import { LangSelect, OUT_LANGS, Seg, Toggle } from '../ui/bits';
 import { Icon } from '../ui/Icon';
+import { ConnectedApps } from './ConnectedApps';
 
 export function SettingsScreen() {
-  const { data, secrets } = useApp();
+  const { data, secrets, connectors } = useApp();
   const [glossary, setGlossary] = useState('');
   useEffect(() => { if (data) setGlossary(data.settings.glossary.join(', ')); }, [data?.settings.glossary]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!data || !secrets) return null;
@@ -19,7 +20,7 @@ export function SettingsScreen() {
   };
   return (
     <div className="page settings">
-      <header className="page-head"><div><h1 className="h1">Settings</h1><p className="lede">Languages, speech engine, Claude and sharing. Keys are encrypted with your system keychain ({secrets.backend}).</p></div></header>
+      <header className="page-head"><div><h1 className="h1">Settings</h1><p className="lede">Languages, speech engine, Claude, connected apps and sharing. Keys and sign-ins are encrypted with your system keychain ({secrets.backend}).</p></div></header>
 
       <section className="card form-card">
         <h2 className="h3">You</h2>
@@ -72,10 +73,16 @@ export function SettingsScreen() {
           <p className="hint">Names and product terms Bibbly must keep exactly, e.g. Nimbus Lite, 李伟.</p></div>
       </section>
 
+      <ConnectedApps />
+
       <section className="card form-card">
-        <h2 className="h3">Sharing</h2>
-        <div className="field"><label htmlFor="st-room">Rooms server</label><input id="st-room" className="input" defaultValue={s.roomServer} onBlur={e => void saveSettings({ roomServer: e.target.value.trim().replace(/\/$/, '') })} />
-          <p className="hint">Runs apps/server. Guests open the room link and pick their own language; the server translates once per language.</p></div>
+        <h2 className="h3">Bibbly server</h2>
+        <div className="field"><label htmlFor="st-room">Server address</label>
+          <input id="st-room" className="input" defaultValue={s.roomServer}
+            onBlur={e => { const v = e.target.value.trim().replace(/\/+$/, ''); if (v !== s.roomServer) void saveSettings({ roomServer: v }).then(refreshConnectors); }} />
+          <p className="hint">Runs apps/server. It shares live captions (guests open the room link and pick their own language) and signs you in to connected apps, keeping their client secrets off this computer.</p>
+          {connectors?.server.reachable === false && <p className="hint warn-text"><Icon n="info" size={14} /> Not reachable right now: {connectors.server.error}</p>}
+          {connectors?.server.reachable && <p className="hint"><Icon n="tick" size={14} /> Reachable.</p>}</div>
       </section>
 
       <section className="card form-card">

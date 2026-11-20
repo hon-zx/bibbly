@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
-import type { AppData, BibblyApi, SessionEvent } from '../src/shared/ipc.js';
+import type { AppData, BibblyApi, ConnectorNotice, ConnectorsView, SessionEvent } from '../src/shared/ipc.js';
 
 const on = <T>(channel: string, cb: (payload: T) => void) => {
   const fn = (_e: IpcRendererEvent, payload: T) => cb(payload);
@@ -45,6 +45,18 @@ const api: BibblyApi & { onNavigate(cb: (route: string) => void): () => void } =
     simulatorStop: () => ipcRenderer.invoke('stick:sim:stop'),
     simulatorWrite: bytes => ipcRenderer.send('stick:sim:write', bytes),
     onSimulatorData: cb => on<Uint8Array>('stick:sim:data', cb),
+  },
+  connectors: {
+    view: () => ipcRenderer.invoke('connectors:view'),
+    connect: (provider, token) => ipcRenderer.invoke('connectors:connect', provider, token),
+    cancelConnect: () => ipcRenderer.invoke('connectors:cancel'),
+    disconnect: id => ipcRenderer.invoke('connectors:disconnect', id),
+    updateSettings: (id, settings) => ipcRenderer.invoke('connectors:settings', id, settings),
+    targets: id => ipcRenderer.invoke('connectors:targets', id),
+    syncNow: () => ipcRenderer.invoke('connectors:sync'),
+    publish: (noteId, accountId, target, lang) => ipcRenderer.invoke('connectors:publish', noteId, accountId, target, lang),
+    onChanged: cb => on<ConnectorsView>('connectors:changed', cb),
+    onNotice: cb => on<ConnectorNotice>('connectors:notice', cb),
   },
   mini: { toggle: show => ipcRenderer.invoke('mini:toggle', show) },
   openExternal: url => ipcRenderer.invoke('app:openExternal', url),

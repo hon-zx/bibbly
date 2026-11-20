@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { addDays, atTime, hasTime, isoDay, sameDay, spokenName, uid, weekStart, type CalendarEvent, type Platform } from '@bibbly/core';
-import { go, saveEvents, useApp } from '../store';
+import type { ProviderId } from '@bibbly/connectors';
+import { api } from '../api';
+import { go, saveEvents, updateEvent, useApp } from '../store';
 import { Sheet, Toggle, fmtTime, relDay } from '../ui/bits';
 import { Icon } from '../ui/Icon';
 
@@ -8,6 +10,7 @@ const PLATFORMS: Record<Platform, string> = { zoom: 'Zoom', teams: 'Microsoft Te
 
 export function CalendarScreen() {
   const { data } = useApp();
+  const calendarName = useCalendarName();
   const [week, setWeek] = useState(0);
   const [adding, setAdding] = useState<string | null>(null);
   const [open, setOpen] = useState<string | null>(null);
@@ -41,7 +44,8 @@ export function CalendarScreen() {
                 {evs.map(e => (
                   <li key={e.id}><button className="da-ev" onClick={() => setOpen(e.id)}>
                     <span className="da-time tnum">{fmtTime(e.start)}<small>{e.durationMin} min</small></span>
-                    <span className="da-body"><b>{e.title}</b><span>{PLATFORMS[e.platform]}{e.languages?.length ? ` · ${e.languages.map(spokenName).join(', ')}` : ''}{e.bibblyJoins ? ' · Bibbly translates' : ''}</span></span>
+                    <span className="da-body"><b>{e.title}</b><span>{PLATFORMS[e.platform]}{e.languages?.length ? ` · ${e.languages.map(spokenName).join(', ')}` : ''}{e.bibblyJoins ? ' · Bibbly translates' : ''}</span>
+                      {e.source && <span className="da-src">{e.source.readOnly ? `From ${calendarName(e.source.provider)}` : `Saved to ${calendarName(e.source.provider)}`}</span>}</span>
                   </button></li>
                 ))}
                 {due.map(t => <li key={t.id}><button className="da-task" onClick={() => go('tasks')}><Icon n="check" size={16} /><span><b>{t.title}</b><span>Due{t.due && hasTime(t.due) ? ` ${fmtTime(t.due)}` : ''}</span></span></button></li>)}
@@ -57,6 +61,12 @@ export function CalendarScreen() {
   );
 }
 
+/** "Google Calendar", "Outlook Calendar"…, from the providers the main process describes. */
+function useCalendarName() {
+  const { connectors } = useApp();
+  return (p: ProviderId) => { const info = connectors?.providers.find(x => x.id === p); return info?.labels.calendar ?? info?.name ?? 'your calendar'; };
+}
+
 function NewEvent({ day, onClose }: { day: string; onClose: () => void }) {
   const { data } = useApp();
   const [f, setF] = useState({ title: '', day, time: '15:00', dur: 30, platform: 'zoom' as Platform, bibbly: true });
@@ -64,7 +74,7 @@ function NewEvent({ day, onClose }: { day: string; onClose: () => void }) {
     e.preventDefault();
     if (!f.title.trim()) return;
     const start = atTime(new Date(`${f.day}T00:00:00`), f.time || '09:00').getTime();
-    const ev: CalendarEvent = { id: uid('e_'), title: f.title.trim().slice(0, 80), start, durationMin: f.dur, platform: f.platform, bibblyJoins: f.platform !== 'in-person' && f.bibbly, languages: [data!.settings.myLang] };
+    const ev: CalendarEvent = { id: uid('e_'), title: f.title.trim().slice(0, 80), start, durationMin: f.dur, platform: f.platform, bibblyJoins: f.platform !== 'in-person' && f.bibbly, languages: [data!.settings.myLang], updatedAt: Date.now() };
     saveEvents([...data!.events, ev]);
     onClose();
   };
@@ -91,20 +101,27 @@ function EventSheet({ e, onClose }: { e: CalendarEvent; onClose: () => void }) {
   const { data } = useApp();
   const prev = e.prevNoteId ? data?.notes.find(n => n.id === e.prevNoteId) : undefined;
   const own = e.noteId ? data?.notes.find(n => n.id === e.noteId) : undefined;
-  const update = (p: Partial<CalendarEvent>) => saveEvents(data!.events.map(x => (x.id === e.id ? { ...x, ...p } : x)));
+  const { connectors } = useApp();
+  const calendarName = useCalendarName();
+  const update = (p: Partial<CalendarEvent>) => updateEvent(e.id, p);
   const upcoming = e.start + e.durationMin * 60_000 > Date.now();
+  const src = e.source;
+  const account = src ? connectors?.accounts.find(a => a.id === src.accountId)?.label ?? '' : '';
   return (
     <Sheet title={e.title} onClose={onClose}>
       <ul className="ev-meta">
         <li><Icon n="clock" /><span>{relDay(e.start)}, {fmtTime(e.start)} to {fmtTime(e.start + e.durationMin * 60_000)}</span></li>
         <li><Icon n="users" /><span>{PLATFORMS[e.platform]}{e.attendees ? ` · ${e.attendees}` : ''}</span></li>
         {!!e.languages?.length && <li><Icon n="globe" /><span className="chips">{e.languages.map(l => <span key={l} className="chip sm">{spokenName(l)}</span>)}</span></li>}
+        {e.meetUrl && <li><Icon n="link" /><button className="link" onClick={() => void api.openExternal(e.meetUrl!)}>Join the {PLATFORMS[e.platform]} call</button></li>}
+        {src && <li><Icon n="calendar" /><span>{src.readOnly ? 'From' : 'Saved to'} {calendarName(src.provider)}{account ? ` (${account})` : ''}{src.url && <> · <button className="link" onClick={() => void api.openExternal(src.url!)}>Open there</button></>}</span></li>}
       </ul>
+      {src?.readOnly && <p className="hint">Change the time or title in {calendarName(src.provider)}; Bibbly follows it.</p>}
       {e.platform !== 'in-person' && <div className="row-between"><div><b>Bibbly joins and translates</b><p className="hint">Captions for each person in their own language, then notes for everyone.</p></div><Toggle on={e.bibblyJoins} onChange={v => update({ bibblyJoins: v })} label="Bibbly joins and translates" /></div>}
       {(own ?? prev) && <div className="ev-link"><p className="eyebrow">{own ? 'Bibbly’s notes' : 'Notes from last time'}</p>
         <button className="link-card" onClick={() => { onClose(); go('notes', { noteId: (own ?? prev)!.id }); }}><b>{(own ?? prev)!.title}</b><span>{(own ?? prev)!.clarity?.actions.length ?? 0} action items · open the note</span></button></div>}
       <div className="sheet-actions">
-        <button className="btn ghost" onClick={() => { saveEvents(data!.events.filter(x => x.id !== e.id)); onClose(); }}><Icon n="trash" />Delete</button>
+        {!src?.readOnly && <button className="btn ghost" onClick={() => { saveEvents(data!.events.filter(x => x.id !== e.id)); onClose(); }}><Icon n="trash" />{src ? `Delete here and in ${calendarName(src.provider)}` : 'Delete'}</button>}
         {upcoming && <button className="btn primary" onClick={() => { onClose(); go('live'); }}><Icon n="mic" />Open Live</button>}
       </div>
     </Sheet>

@@ -1,4 +1,5 @@
-import type { CalendarEvent, Channel, Clarity, ExportFormat, LangCode, Line, Member, Note, PartialLine, Task } from '@bibbly/core';
+import type { CalendarEvent, Channel, Clarity, ExportFormat, LangCode, Line, Member, Note, PartialLine, SharedCopy, Task } from '@bibbly/core';
+import type { AccountSettings, ConnectedAccount, ConnectMethod, NoteTarget, ProviderId, ProviderInfo, SyncStatus } from '@bibbly/connectors';
 
 /** Speech engine choice in Settings. */
 export type EngineId = 'demo' | 'azure' | 'whisper';
@@ -58,6 +59,23 @@ export interface ExportResult { saved: boolean; path?: string }
 
 export interface ImportMeta { startedAt: number; durationMs: number; title?: string }
 
+/** A connected-app provider and the ways this computer can connect it. */
+export interface ProviderView extends ProviderInfo { methods: ConnectMethod[] }
+
+export interface ConnectorsView {
+  accounts: ConnectedAccount[];
+  status: Record<string, SyncStatus>;
+  providers: ProviderView[];
+  syncing: boolean;
+  /** A sign-in waiting for the browser. */
+  connecting: ProviderId | null;
+  /** The Bibbly server that brokers sign-ins; reachable is null until checked. */
+  server: { url: string; reachable: boolean | null; error?: string };
+}
+
+/** Something the user should hear about: a connected account, a note sent after a meeting, a failure. */
+export interface ConnectorNotice { text: string; url?: string }
+
 /** The API the preload script exposes on window.bibbly. */
 export interface BibblyApi {
   platform: string;
@@ -97,6 +115,18 @@ export interface BibblyApi {
     simulatorStop(): Promise<void>;
     simulatorWrite(bytes: Uint8Array): void;
     onSimulatorData(cb: (bytes: Uint8Array) => void): () => void;
+  };
+  connectors: {
+    view(): Promise<ConnectorsView>;
+    connect(provider: ProviderId, token?: string): Promise<ConnectorsView>;
+    cancelConnect(): Promise<void>;
+    disconnect(accountId: string): Promise<ConnectorsView>;
+    updateSettings(accountId: string, settings: AccountSettings): Promise<ConnectorsView>;
+    targets(accountId: string): Promise<NoteTarget[]>;
+    syncNow(): Promise<ConnectorsView>;
+    publish(noteId: string, accountId: string, target: NoteTarget | null, lang: LangCode): Promise<SharedCopy>;
+    onChanged(cb: (v: ConnectorsView) => void): () => void;
+    onNotice(cb: (n: ConnectorNotice) => void): () => void;
   };
   mini: { toggle(show?: boolean): Promise<boolean> };
   openExternal(url: string): Promise<void>;
