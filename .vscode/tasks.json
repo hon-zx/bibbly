@@ -1,0 +1,17 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    { "label": "Install", "type": "shell", "command": "npm install", "problemMatcher": [] },
+    { "label": "Build libraries", "type": "shell", "command": "npm run build:libs", "problemMatcher": ["$tsc"], "group": "build" },
+    { "label": "Build everything", "type": "shell", "command": "npm run build", "problemMatcher": ["$tsc"], "group": { "kind": "build", "isDefault": true } },
+    { "label": "Type-check", "type": "shell", "command": "npm run typecheck", "problemMatcher": ["$tsc"] },
+    { "label": "Test", "type": "shell", "command": "npm test", "problemMatcher": [], "group": { "kind": "test", "isDefault": true } },
+    { "label": "Server (rooms + sign-in broker)", "type": "shell", "command": "npm run build -w @bibbly/server && node --env-file-if-exists=apps/server/.env apps/server/dist/index.js", "isBackground": true, "problemMatcher": [] },
+    { "label": "Desktop app", "type": "shell", "command": "npm run build:libs && cd apps/desktop && npm run dev", "problemMatcher": [] },
+    { "label": "Desktop end-to-end", "type": "shell", "command": "npm run build && npm run e2e -w @bibbly/desktop", "problemMatcher": [] },
+    { "label": "Phone app (Metro)", "type": "shell", "command": "npm run build:libs && cd apps/mobile && npm start", "isBackground": true, "problemMatcher": [] },
+    { "label": "Phone checks", "type": "shell", "command": "npm run build:libs && cd apps/mobile && npm run typecheck && npm run bundle && npm run e2e", "problemMatcher": [] },
+    { "label": "Stick firmware: host tests", "type": "shell", "command": "npm run firmware:test", "problemMatcher": ["$gcc"] },
+    { "label": "Website (local)", "type": "shell", "command": "npx serve apps/web/public", "isBackground": true, "problemMatcher": [] }
+  ]
+}

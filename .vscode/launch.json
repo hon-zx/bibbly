@@ -1,0 +1,36 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Server (rooms + sign-in broker)",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/apps/server/dist/index.js",
+      "runtimeArgs": ["--env-file-if-exists=${workspaceFolder}/apps/server/.env"],
+      "preLaunchTask": "Build everything",
+      "sourceMaps": true,
+      "outFiles": ["${workspaceFolder}/apps/server/dist/**/*.js", "${workspaceFolder}/packages/*/dist/**/*.js"]
+    },
+    {
+      "name": "Desktop app (main process)",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/apps/desktop",
+      "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/electron",
+      "windows": { "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/electron.cmd" },
+      "args": ["."],
+      "preLaunchTask": "Build everything",
+      "sourceMaps": true,
+      "outFiles": ["${workspaceFolder}/apps/desktop/dist-electron/**/*.cjs"]
+    },
+    {
+      "name": "Vitest: current file",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${fileDirname}/..",
+      "program": "${workspaceFolder}/node_modules/vitest/vitest.mjs",
+      "args": ["run", "${file}"],
+      "console": "integratedTerminal"
+    }
+  ]
+}
