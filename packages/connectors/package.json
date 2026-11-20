@@ -1,0 +1,33 @@
+{
+  "name": "@bibbly/connectors",
+  "version": "0.1.0",
+  "description": "Bibbly connected apps: Google, Microsoft 365, Slack, Notion and Lark. OAuth, two-way calendar and task sync, and sending notes.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./node": {
+      "types": "./dist/node.d.ts",
+      "default": "./dist/node.js"
+    },
+    "./testing": {
+      "types": "./dist/testing/fakes.d.ts",
+      "default": "./dist/testing/fakes.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.portable.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@bibbly/core": "0.1.0"
+  }
+}

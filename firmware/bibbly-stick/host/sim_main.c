@@ -174,10 +174,12 @@ static int record_synth(stick_store_t *store, uint64_t epoch, uint32_t seconds, 
 }
 
 static void make_demo_recordings(stick_store_t *store) {
-  const uint64_t now = wall_ms();
-  uint64_t morning = local_at(0, 9, 12);
-  if (morning > now) morning = local_at(1, 9, 12);
-  const uint64_t when[3] = {local_at(1, 16, 5), morning, now - 40u * 60u * 1000u};
+  /* An afternoon, the next morning at 09:12, and 40 minutes ago, always in that
+     order: the morning is today's only when it's at least an hour before the
+     latest recording, otherwise yesterday's (and the afternoon the day before). */
+  const uint64_t latest = wall_ms() - 40u * 60u * 1000u;
+  const int day = local_at(0, 9, 12) + 60u * 60u * 1000u <= latest ? 0 : 1;
+  const uint64_t when[3] = {local_at(day + 1, 16, 5), local_at(day, 9, 12), latest};
   const uint32_t seconds[3] = {9, 15, 6};
   /* Oldest first, so recording ids follow the clock. */
   for (int i = 0; i < 3; i++) {

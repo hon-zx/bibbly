@@ -1,0 +1,18 @@
+{
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true,
+  "files.exclude": {
+    "**/dist": true,
+    "**/dist-electron": true,
+    "**/dist-web": true
+  },
+  "search.exclude": {
+    "**/node_modules": true,
+    "build": true,
+    "**/release": true,
+    "apps/web/public/vendor": true
+  },
+  "cmake.sourceDirectory": "${workspaceFolder}/firmware/bibbly-stick/host",
+  "cmake.buildDirectory": "${workspaceFolder}/build/firmware-host",
+  "vitest.maximumConfigs": 10
+}

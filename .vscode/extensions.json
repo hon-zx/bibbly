@@ -1,0 +1,12 @@
+{
+  "recommendations": [
+    "anthropic.claude-code",
+    "vitest.explorer",
+    "expo.vscode-expo-tools",
+    "github.vscode-github-actions",
+    "ms-vscode.cmake-tools",
+    "ms-vscode.cpptools",
+    "espressif.esp-idf-extension",
+    "editorconfig.editorconfig"
+  ]
+}

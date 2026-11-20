@@ -28,7 +28,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm run build -w @bibbly/core
+      - run: npm run build:libs
       - run: npm run build -w @bibbly/desktop
       # Unsigned builds. For signed and notarized installers add CSC_LINK / CSC_KEY_PASSWORD
       # (and APPLE_ID / APPLE_APP_SPECIFIC_PASSWORD / APPLE_TEAM_ID on macOS) as repository secrets.

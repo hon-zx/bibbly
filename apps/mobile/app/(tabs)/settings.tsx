@@ -5,6 +5,7 @@ import { micAvailable } from '../../modules/bibbly-audio';
 import { setSecret, useSecretStatus, type SecretName } from '../../src/secrets';
 import { updateSettings, useData } from '../../src/store';
 import { useTheme } from '../../src/theme';
+import { ConnectedAppsCard } from '../../src/ui/apps';
 import { Body, Button, Card, Chip, Field, H2, Row, Screen, Title } from '../../src/ui/kit';
 
 function SecretField({ name, label, hint, placeholder }: { name: SecretName; label: string; hint: string; placeholder: string }) {
@@ -69,15 +70,17 @@ export default function SettingsScreen() {
           onChangeText={v => updateSettings({ glossary: v.split(',').map(x => x.trim()).filter(Boolean) })} hint="Comma separated, e.g. product and people names." />
       </Card>
 
+      <ConnectedAppsCard />
+
       <Card>
-        <H2>Rooms</H2>
-        <Field label="Rooms server" value={s.roomServer} onChangeText={v => updateSettings({ roomServer: v.trim() })} autoCapitalize="none" autoCorrect={false}
-          keyboardType="url" hint="Where Bibbly for desktop shares live captions (apps/server). Join with the room code on the Live tab." />
+        <H2>Bibbly server</H2>
+        <Field label="Server address" value={s.roomServer} onChangeText={v => updateSettings({ roomServer: v.trim().replace(/\/+$/, '') })} autoCapitalize="none" autoCorrect={false}
+          keyboardType="url" hint="Runs apps/server. Bibbly for desktop shares live captions through it (join with the room code on the Live tab), and it signs you in to connected apps." />
       </Card>
 
       <Card tone="lagoon">
         <H2>Privacy</H2>
-        <Body>Notes, tasks and recordings stay on this phone. Audio goes only to the speech server you choose, and text only to Claude. API keys live in the keychain.</Body>
+        <Body>Notes, tasks and recordings stay on this phone. Audio goes only to the speech server you choose, and text only to Claude. Tasks, calendar and notes go only to the apps you connect. API keys and sign-ins live in the keychain.</Body>
       </Card>
     </Screen>
   );

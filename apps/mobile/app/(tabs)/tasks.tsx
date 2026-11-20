@@ -24,8 +24,9 @@ function dueLabel(due: number | null): string {
 function TaskRow({ task }: { task: Task }) {
   const t = useTheme();
   const overdue = !task.done && task.due != null && task.due < startOfDay(Date.now()).getTime();
-  const toggle = () => update(d => ({ tasks: d.tasks.map(x => (x.id === task.id ? { ...x, done: !x.done, doneAt: x.done ? null : Date.now() } : x)) }));
-  const remind = () => update(d => ({ tasks: d.tasks.map(x => (x.id === task.id ? { ...x, remind: !x.remind } : x)) }));
+  // Every change stamps updatedAt, so sync with connected apps can tell which side changed last.
+  const toggle = () => update(d => ({ tasks: d.tasks.map(x => (x.id === task.id ? { ...x, done: !x.done, doneAt: x.done ? null : Date.now(), updatedAt: Date.now() } : x)) }));
+  const remind = () => update(d => ({ tasks: d.tasks.map(x => (x.id === task.id ? { ...x, remind: !x.remind, updatedAt: Date.now() } : x)) }));
   const remove = () => Alert.alert('Delete this task?', task.title, [
     { text: 'Cancel', style: 'cancel' },
     { text: 'Delete', style: 'destructive', onPress: () => update(d => ({ tasks: d.tasks.filter(x => x.id !== task.id) })) },
@@ -39,7 +40,7 @@ function TaskRow({ task }: { task: Task }) {
       <Pressable style={{ flex: 1, paddingVertical: 8 }} onLongPress={remove} accessibilityHint="Long press to delete">
         <Text style={{ color: task.done ? t.ink3 : t.ink, fontSize: 16, textDecorationLine: task.done ? 'line-through' : 'none' }}>{task.title}</Text>
         <Text style={{ color: overdue ? t.coral : t.ink3, fontSize: 13 }}>
-          {[dueLabel(task.due), task.list, task.source ? 'from a meeting' : ''].filter(Boolean).join(' · ')}
+          {[dueLabel(task.due), task.list, task.source ? 'from a meeting' : '', task.synced?.length ? 'synced' : ''].filter(Boolean).join(' · ')}
         </Text>
       </Pressable>
       <IconButton icon="bell" label={task.remind ? 'Turn reminder off' : 'Remind me'} onPress={remind} color={task.remind ? t.lagoon : t.ink3} />
@@ -68,7 +69,7 @@ export default function TasksScreen() {
     const v = text.trim();
     if (!v) return;
     const p = parseQuickTask(v, new Date());
-    const task: Task = { id: uid('task-'), title: p.title, list: p.list, due: p.due, remind: p.remind, done: false };
+    const task: Task = { id: uid('task-'), title: p.title, list: p.list, due: p.due, remind: p.remind, done: false, updatedAt: Date.now() };
     update(d => ({ tasks: [task, ...d.tasks] }));
     setText('');
     if (filter === 'done') setFilter('all');

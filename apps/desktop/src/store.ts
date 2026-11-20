@@ -5,7 +5,8 @@ import {
 } from '@bibbly/core';
 import { api } from './api';
 import { AudioCapture, findStickMic } from './audio/capture';
-import type { AppData, SecretStatus, SessionEvent, Settings, StartOptions } from './shared/ipc';
+import type { AccountSettings, NoteTarget, ProviderId } from '@bibbly/connectors';
+import type { AppData, ConnectorsView, SecretStatus, SessionEvent, Settings, StartOptions } from './shared/ipc';
 
 export type Route = 'today' | 'live' | 'notes' | 'tasks' | 'calendar' | 'stick' | 'settings';
 export const ROUTES: Route[] = ['today', 'live', 'notes', 'tasks', 'calendar', 'stick', 'settings'];
@@ -35,6 +36,7 @@ export interface Toast { id: number; text: string; action?: { label: string; run
 export interface State {
   data: AppData | null;
   secrets: SecretStatus | null;
+  connectors: ConnectorsView | null;
   live: LiveView | null;
   route: Route;
   noteId: string | null;
@@ -44,7 +46,7 @@ export interface State {
 }
 
 let state: State = {
-  data: null, secrets: null, live: null, route: (ROUTES.find(r => `#${r}` === location.hash) ?? 'live'),
+  data: null, secrets: null, connectors: null, live: null, route: (ROUTES.find(r => `#${r}` === location.hash) ?? 'live'),
   noteId: null, toast: null, levels: {}, error: null,
 };
 const subs = new Set<() => void>();
@@ -77,6 +79,9 @@ export async function init() {
   const [data, secrets] = await Promise.all([api.data.get(), api.secrets.status()]);
   setState({ data, secrets });
   api.onDataChanged(d => setState({ data: d }));
+  api.connectors.onChanged(v => setState({ connectors: v }));
+  api.connectors.onNotice(n => toast(n.text, n.url ? { action: { label: 'Open', run: () => void api.openExternal(n.url!) } } : {}));
+  void api.connectors.view().then(v => setState({ connectors: v })).catch(() => undefined);
   api.session.onEvent(onSessionEvent);
   api.onNavigate?.(r => { if (ROUTES.includes(r as Route)) go(r as Route); });
 }
@@ -187,7 +192,7 @@ export function addTask(text: string): Task | null {
   const raw = text.trim();
   if (!raw) return null;
   const q = parseQuickTask(raw);
-  const t: Task = { id: uid('t_'), title: q.title, due: q.due, remind: q.remind, list: q.list, done: false };
+  const t: Task = { id: uid('t_'), title: q.title, due: q.due, remind: q.remind, list: q.list, done: false, updatedAt: Date.now() };
   saveTasks([t, ...data().tasks]);
   // Text in other scripts ("明天下午三点给李伟发报价") is tidied by Claude when a key is set.
   if (/[^\u0000-ɏ\s]/.test(raw)) {
@@ -195,7 +200,8 @@ export function addTask(text: string): Task | null {
   }
   return t;
 }
-export function updateTask(id: string, p: Partial<Task>) { saveTasks(data().tasks.map(t => (t.id === id ? { ...t, ...p } : t))); }
+/** Every change stamps updatedAt, so sync can tell which side changed last. */
+export function updateTask(id: string, p: Partial<Task>) { saveTasks(data().tasks.map(t => (t.id === id ? { ...t, ...p, updatedAt: Date.now() } : t))); }
 export function deleteTask(id: string) { saveTasks(data().tasks.filter(t => t.id !== id)); }
 export function toggleTask(id: string) {
   const t = data().tasks.find(x => x.id === id);
@@ -208,18 +214,19 @@ export function addActionAsTask(a: ActionItem, note: Pick<Note, 'id'>, lang: Lan
   if (data().tasks.some(t => t.source?.actionId === a.id)) { toast('Already in your tasks.'); return; }
   const text = a.text[lang] ?? a.text[a.src] ?? '';
   const title = a.ownerIsMe ? text : `Follow up with ${a.owner}: ${text}`;
-  saveTasks([{ id: uid('t_'), title, list: 'Work', due: a.due, remind: !!a.due && hasTime(a.due), done: false,
+  saveTasks([{ id: uid('t_'), title, list: 'Work', due: a.due, remind: !!a.due && hasTime(a.due), done: false, updatedAt: Date.now(),
                source: { noteId: note.id, ...(a.lineId ? { lineId: a.lineId } : {}), actionId: a.id } }, ...data().tasks]);
   toast('Added to Tasks.', { mascot: 'happy', action: { label: 'View', run: () => go('tasks') } });
 }
 
 export function saveEvents(events: CalendarEvent[]) { patchData({ events }); void api.data.saveEvents(events); }
+export function updateEvent(id: string, p: Partial<CalendarEvent>) { saveEvents(data().events.map(e => (e.id === id ? { ...e, ...p, updatedAt: Date.now() } : e))); }
 
 export function addFollowUp(f: FollowUp, note: Pick<Note, 'id' | 'languages'>, lang: LangCode) {
   const title = f.text[lang] ?? f.text[f.src] ?? 'Follow-up';
   const start = f.when ?? Date.now() + 86_400_000;
   if (data().events.some(e => e.prevNoteId === note.id && e.title === title)) { toast('It’s already on your calendar.'); return; }
-  saveEvents([...data().events, { id: uid('e_'), title, start, durationMin: f.durationMin, platform: 'zoom', languages: note.languages, bibblyJoins: true, prevNoteId: note.id }]);
+  saveEvents([...data().events, { id: uid('e_'), title, start, durationMin: f.durationMin, platform: 'zoom', languages: note.languages, bibblyJoins: true, prevNoteId: note.id, updatedAt: Date.now() }]);
   toast('Added to your calendar.', { action: { label: 'View', run: () => go('calendar') } });
 }
 
@@ -241,4 +248,39 @@ export async function exportNote(id: string, format: ExportFormat, lang: LangCod
     const r = await api.notes.export(id, format, lang, opts);
     if (r.saved) toast(`Saved ${r.path?.split(/[\\/]/).pop() ?? 'file'}.`, { mascot: 'happy' });
   } catch (err) { toast(err instanceof Error ? err.message : 'That export did not work.'); }
+}
+
+/* ---------------------------- connected apps ----------------------------- */
+const errText = (err: unknown) => (err instanceof Error ? err.message : String(err)).replace(/^Error invoking remote method '[^']+': (\w*Error: )?/, '');
+
+export async function connectApp(provider: ProviderId, token?: string) {
+  try { setState({ connectors: await api.connectors.connect(provider, token) }); }
+  catch (err) { const m = errText(err); if (!/cancelled/i.test(m)) toast(m); }
+}
+export async function cancelConnect() { await api.connectors.cancelConnect(); }
+export async function disconnectApp(accountId: string) {
+  try { setState({ connectors: await api.connectors.disconnect(accountId) }); toast('Disconnected. Bibbly’s copies of its events were removed; your tasks stay.'); }
+  catch (err) { toast(errText(err)); }
+}
+export async function updateAccountSettings(accountId: string, settings: AccountSettings) {
+  try { setState({ connectors: await api.connectors.updateSettings(accountId, settings) }); }
+  catch (err) { toast(errText(err)); }
+}
+export async function syncNow() {
+  try { setState({ connectors: await api.connectors.syncNow() }); }
+  catch (err) { toast(errText(err)); }
+}
+export async function refreshConnectors() {
+  try { setState({ connectors: await api.connectors.view() }); } catch { /* keep the last view */ }
+}
+export async function noteTargets(accountId: string): Promise<NoteTarget[]> {
+  try { return await api.connectors.targets(accountId); }
+  catch (err) { toast(errText(err)); return []; }
+}
+export async function publishNote(noteId: string, accountId: string, target: NoteTarget | null, lang: LangCode): Promise<boolean> {
+  try {
+    const copy = await api.connectors.publish(noteId, accountId, target, lang);
+    toast(`Sent to ${copy.target}.`, { mascot: 'happy', ...(copy.url ? { action: { label: 'Open', run: () => void api.openExternal(copy.url!) } } : {}) });
+    return true;
+  } catch (err) { toast(errText(err)); return false; }
 }

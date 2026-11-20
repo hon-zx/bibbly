@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
+import type { ConnectedAccount, NoteTarget } from '@bibbly/connectors';
 import { exportModel, itemText, langNative, lineText, spokenName, toMarkdown, type ExportFormat, type LangCode, type Note } from '@bibbly/core';
-import { deleteNote, exportNote, setState, toast, translateNote, useApp } from '../store';
+import { api } from '../api';
+import { deleteNote, exportNote, go, noteTargets, publishNote, setState, toast, translateNote, useApp } from '../store';
 import { Empty, LangSelect, Seg, fmtDate, fmtTime, relDay } from '../ui/bits';
 import { Icon } from '../ui/Icon';
 import { Caption, ClarityBody } from './Live';
@@ -37,7 +39,7 @@ export function NotesScreen() {
               <span className="nr-top"><span className="nr-title">{n.title}</span><span className="nr-date">{relDay(n.startedAt)}</span></span>
               <span className="nr-meta"><span>{Math.max(1, Math.round(n.durationSec / 60))} min · {n.source}</span></span>
               {n.clarity?.summary[0] && <span className="nr-snip">{itemText(n.clarity.summary[0], data.settings.myLang).text}</span>}
-              <span className="nr-foot">{n.languages.map(l => <span key={l} className="chip sm">{spokenName(l)}</span>)}{n.pendingReason && <span className="chip sm due late">Not transcribed</span>}</span>
+              <span className="nr-foot">{n.languages.map(l => <span key={l} className="chip sm">{spokenName(l)}</span>)}{n.pendingReason && <span className="chip sm due late">Not transcribed</span>}{!!n.shared?.length && <span className="chip sm from">Sent</span>}</span>
             </button>
           </li>))}</ul>
         {!list.length && <Empty state="think" title={needle ? 'No notes match that search.' : 'No notes yet.'}>{needle ? null : 'Save a live session and it lands here.'}</Empty>}
@@ -91,6 +93,7 @@ function NoteDetail({ note }: { note: Note }) {
             <label className="check-row"><input type="checkbox" checked={withClarity} onChange={e => setWithClarity(e.target.checked)} />Include the summary, decisions and action items</label>
             <p className="hint">Files are written in <b>{langNative(lang)}</b>. Change “Read in” above to export another language.</p>
           </div>
+          <SendTo note={note} lang={lang} />
           <h3 className="h4">Download a file</h3>
           <div className="ex-grid">{FORMATS.map(f => (
             <button key={f.id} className="ex-file" onClick={() => void exportNote(note.id, f.id, lang, { original: orig, clarity: withClarity })}>
@@ -105,5 +108,47 @@ function NoteDetail({ note }: { note: Note }) {
         </div>
       )}
     </article>
+  );
+}
+
+/** Send the note straight to Slack, Notion, Google Docs, Teams or Lark. */
+function SendTo({ note, lang }: { note: Note; lang: LangCode }) {
+  const { connectors: v } = useApp();
+  if (!v) return null;
+  const accounts = v.accounts.filter(a => a.settings.notes?.enabled);
+  return (
+    <div className="send-to">
+      <h3 className="h4">Send to a connected app</h3>
+      {accounts.length
+        ? <ul className="send-list">{accounts.map(a => <SendRow key={a.id} a={a} note={note} lang={lang} />)}</ul>
+        : <p className="hint">Connect Slack, Notion, Google, Microsoft Teams or Lark to send notes straight there. <button className="link" onClick={() => go('settings')}>Connect an app</button></p>}
+      {!!note.shared?.length && (
+        <ul className="shared-list" aria-label="Already sent">
+          {note.shared.map(c => <li key={`${c.provider}-${c.at}`}><Icon n="tick" size={14} /><span>Sent to {c.target} · {fmtDate(c.at)}, {fmtTime(c.at)}</span>{c.url && <button className="link" onClick={() => void api.openExternal(c.url!)}>Open</button>}</li>)}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function SendRow({ a, note, lang }: { a: ConnectedAccount; note: Note; lang: LangCode }) {
+  const { connectors: v } = useApp();
+  const p = v!.providers.find(x => x.id === a.provider);
+  const pickTarget = a.provider !== 'google';
+  const [targets, setTargets] = useState<NoteTarget[] | null>(null);
+  const [target, setTarget] = useState<NoteTarget | null>(a.settings.notes?.target ?? null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { if (pickTarget) void noteTargets(a.id).then(setTargets); }, [a.id, pickTarget]);
+  const options = targets ?? (target ? [target] : []);
+  return (
+    <li className="send-row">
+      <span className="send-who"><b>{p?.labels.notes ?? a.provider}</b><span className="hint">{a.label}</span></span>
+      {pickTarget && (
+        <span className="select"><select aria-label={`Where in ${p?.name ?? a.provider}`} value={target?.id ?? ''} onChange={e => setTarget(options.find(t => t.id === e.target.value) ?? null)}>
+          <option value="" disabled>{targets ? 'Choose…' : 'Loading…'}</option>{options.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select><Icon n="down" size={16} /></span>
+      )}
+      <button className="btn sm primary" disabled={busy || (pickTarget && !target)} onClick={() => { setBusy(true); void publishNote(note.id, a.id, target, lang).finally(() => setBusy(false)); }}>
+        <Icon n="arrow" />{busy ? 'Sending…' : 'Send'}</button>
+    </li>
   );
 }

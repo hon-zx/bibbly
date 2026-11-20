@@ -38,7 +38,7 @@ export function actionInTasks(note: Note, a: ActionItem): boolean {
 export function addActionToTasks(note: Note, a: ActionItem, lang: LangCode): void {
   if (actionInTasks(note, a)) return;
   const task: Task = {
-    id: uid('task-'), title: a.text[lang] ?? a.text[a.src] ?? Object.values(a.text)[0] ?? 'Follow up', list: 'Work', due: a.due, remind: a.due != null, done: false,
+    id: uid('task-'), title: a.text[lang] ?? a.text[a.src] ?? Object.values(a.text)[0] ?? 'Follow up', list: 'Work', due: a.due, remind: a.due != null, done: false, updatedAt: Date.now(),
     source: { noteId: note.id, actionId: a.id, ...(a.lineId ? { lineId: a.lineId } : {}) },
   };
   update(d => ({ tasks: [task, ...d.tasks] }));

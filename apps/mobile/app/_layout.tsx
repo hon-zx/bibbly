@@ -3,6 +3,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { startConnectors } from '../src/connectors';
 import { syncReminders } from '../src/reminders';
 import { loadSecrets } from '../src/secrets';
 import { hydrate, useData, useReady } from '../src/store';
@@ -16,7 +17,10 @@ export default function RootLayout() {
   const tasks = useData(d => d.tasks);
 
   useEffect(() => {
-    Promise.all([hydrate(), loadSecrets()]).finally(() => { void SplashScreen.hideAsync(); });
+    Promise.all([hydrate(), loadSecrets()]).finally(() => {
+      void SplashScreen.hideAsync();
+      void startConnectors();
+    });
   }, []);
 
   // Keep the phone's scheduled reminders in step with the task list.

@@ -6,7 +6,9 @@ import {
 import {
   buildExport, decodeWav, DemoTranslator, lineText, type CalendarEvent, type Channel, type ExportFormat, type LangCode, type Note, type Task,
 } from '@bibbly/core';
-import type { AppData, ImportMeta, SecretName, SessionEvent, Settings, StartOptions } from '../src/shared/ipc.js';
+import type { AccountSettings, NoteTarget, ProviderId } from '@bibbly/connectors';
+import type { AppData, ConnectorNotice, ImportMeta, SecretName, SessionEvent, Settings, StartOptions } from '../src/shared/ipc.js';
+import { ConnectorService } from './connectors.js';
 import { SessionManager } from './engine.js';
 import { Secrets } from './secrets.js';
 import { seedData } from './seed.js';
@@ -99,6 +101,12 @@ app.whenReady().then(async () => {
   const manager = new SessionManager(store, secrets, (e: SessionEvent) => broadcast('session:event', e));
   const simulator = new StickSimulator(bytes => mainWin?.webContents.send('stick:sim:data', bytes));
   const dataChanged = () => broadcast('data:changed', store.data);
+  const connectors = new ConnectorService({
+    dir, store, serverUrl: () => store.data.settings.roomServer,
+    onChange: v => broadcast('connectors:changed', v),
+    onData: dataChanged,
+    notify: (n: ConnectorNotice) => broadcast('connectors:notice', n),
+  });
 
   // Permissions: microphone, meeting audio, notifications and the Bibbly Stick only.
   const allowed = new Set(['media', 'display-capture', 'notifications', 'clipboard-sanitized-write', 'usb', 'hid']);
@@ -126,8 +134,8 @@ app.whenReady().then(async () => {
     ipcMain.handle(channel, (_e: IpcMainInvokeEvent, ...args: unknown[]) => fn(...(args as A)));
 
   h('data:get', (): AppData => store.data);
-  h('data:saveTasks', (tasks: Task[]) => { store.update({ tasks }); });
-  h('data:saveEvents', (events: CalendarEvent[]) => { store.update({ events }); });
+  h('data:saveTasks', (tasks: Task[]) => { store.update({ tasks }); connectors.scheduleSync(); });
+  h('data:saveEvents', (events: CalendarEvent[]) => { store.update({ events }); connectors.scheduleSync(); });
   h('data:saveNote', (note: Note) => { store.update({ notes: [note, ...store.data.notes.filter(n => n.id !== note.id)] }); });
   h('data:deleteNote', (id: string) => {
     const note = store.data.notes.find(n => n.id === id);
@@ -140,7 +148,12 @@ app.whenReady().then(async () => {
 
   h('session:start', (o: StartOptions) => manager.start(o));
   ipcMain.on('session:frame', (_e, channel: Channel, pcm: ArrayBuffer) => manager.frame(channel, pcm));
-  h('session:stop', async () => { const note = await manager.stop(); dataChanged(); return note; });
+  h('session:stop', async () => {
+    const note = await manager.stop();
+    dataChanged();
+    if (note) void connectors.autoPublish(note);
+    return note;
+  });
   h('session:discard', () => manager.discard());
   h('session:summarize', () => manager.summarize());
   h('session:snapshot', () => manager.snapshot());
@@ -196,6 +209,15 @@ app.whenReady().then(async () => {
   h('stick:sim:stop', () => simulator.stop());
   ipcMain.on('stick:sim:write', (_e, bytes: Uint8Array) => simulator.write(bytes));
 
+  h('connectors:view', async () => { await connectors.checkServer(); return connectors.view(); });
+  h('connectors:connect', (provider: ProviderId, token?: string) => connectors.connect(provider, token));
+  h('connectors:cancel', () => connectors.cancelConnect());
+  h('connectors:disconnect', (id: string) => connectors.disconnect(id));
+  h('connectors:settings', (id: string, settings: AccountSettings) => connectors.updateSettings(id, settings));
+  h('connectors:targets', (id: string) => connectors.targets(id));
+  h('connectors:sync', async () => { await connectors.syncNow(); return connectors.view(); });
+  h('connectors:publish', (noteId: string, accountId: string, target: NoteTarget | null, lang: LangCode) => connectors.publish(noteId, accountId, target, lang));
+
   h('mini:toggle', (show?: boolean) => toggleMini(show));
   h('app:openExternal', (url: string) => { if (/^https?:\/\//.test(url)) return shell.openExternal(url); });
 
@@ -215,9 +237,10 @@ app.whenReady().then(async () => {
   }, 30_000);
 
   createMain();
+  connectors.start();
   app.on('second-instance', () => { if (mainWin) { if (mainWin.isMinimized()) mainWin.restore(); mainWin.focus(); } });
   app.on('activate', () => { if (!mainWin) createMain(); });
-  app.on('before-quit', () => { store.saveNow(); simulator.stop(); void manager.discard(); });
+  app.on('before-quit', () => { connectors.stop(); store.saveNow(); simulator.stop(); void manager.discard(); });
 });
 
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });

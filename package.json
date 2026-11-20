@@ -8,10 +8,11 @@
     "apps/desktop"
   ],
   "scripts": {
-    "build": "npm run build -w @bibbly/core && npm run build -w @bibbly/server && npm run build -w @bibbly/desktop",
-    "test": "npm run test -w @bibbly/core && npm run test -w @bibbly/server",
+    "build": "npm run build:libs && npm run build -w @bibbly/server && npm run build -w @bibbly/desktop",
+    "test": "npm run test -w @bibbly/core && npm run test -w @bibbly/connectors && npm run test -w @bibbly/server",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "firmware:test": "cmake -S firmware/bibbly-stick/host -B build/firmware-host -G Ninja && cmake --build build/firmware-host && ctest --test-dir build/firmware-host --output-on-failure"
+    "firmware:test": "cmake -S firmware/bibbly-stick/host -B build/firmware-host -G Ninja && cmake --build build/firmware-host && ctest --test-dir build/firmware-host --output-on-failure",
+    "build:libs": "npm run build -w @bibbly/core && npm run build -w @bibbly/connectors"
   },
   "engines": {
     "node": ">=22"
