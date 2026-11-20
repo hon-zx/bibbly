@@ -4,17 +4,21 @@ import type { ServerMsg, Translator } from '@bibbly/core';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { RoomHub, type Conn } from './hub.js';
 import { listenerPage } from './listener-page.js';
+import { OAuthBroker, type BrokerOptions } from './oauth-broker.js';
 
 export interface ServerOptions {
   port?: number;
   host?: string;
   translator: Translator | null;
+  /** Connected-app sign-in broker (see oauth-broker.ts). Off when omitted. */
+  oauth?: BrokerOptions | null;
 }
 
-export interface RunningServer { port: number; hub: RoomHub; close(): Promise<void> }
+export interface RunningServer { port: number; hub: RoomHub; broker: OAuthBroker | null; close(): Promise<void> }
 
 export async function startServer(o: ServerOptions): Promise<RunningServer> {
   const hub = new RoomHub({ translator: o.translator });
+  const broker = o.oauth ? new OAuthBroker(o.oauth) : null;
   const http = createHttp((req: IncomingMessage, res: ServerResponse) => {
     const url = new URL(req.url ?? '/', 'http://localhost');
     const send = (status: number, type: string, body: string) => {
@@ -22,7 +26,11 @@ export async function startServer(o: ServerOptions): Promise<RunningServer> {
                               'content-security-policy': "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self' ws: wss:" });
       res.end(body);
     };
-    if (url.pathname === '/healthz') return send(200, 'application/json', JSON.stringify({ ok: true, rooms: hub.roomCount, translation: !!o.translator }));
+    if (url.pathname.startsWith('/oauth/')) {
+      if (broker) { void broker.handle(req, res, url); return; }
+      return send(404, 'application/json', JSON.stringify({ code: 'not_configured', message: 'Connected apps are not set up on this server.' }));
+    }
+    if (url.pathname === '/healthz') return send(200, 'application/json', JSON.stringify({ ok: true, rooms: hub.roomCount, translation: !!o.translator, connectors: broker?.configured() ?? [] }));
     const join = /^\/join\/([a-z0-9]{4,12})$/.exec(url.pathname);
     if (join) return send(200, 'text/html; charset=utf-8', listenerPage(join[1]!, !!o.translator));
     if (url.pathname === '/') return send(200, 'text/plain; charset=utf-8', 'Bibbly rooms server. Open /join/<room-code> to follow live captions.');
@@ -50,12 +58,17 @@ export async function startServer(o: ServerOptions): Promise<RunningServer> {
       ws.ping();
     }
     hub.sweep();
+    broker?.sweep();
   }, 30_000);
 
   await new Promise<void>(res => http.listen(o.port ?? 8787, o.host ?? '0.0.0.0', res));
   const port = (http.address() as AddressInfo).port;
+  if (broker && !broker.publicUrl) {
+    const host = !o.host || o.host === '0.0.0.0' || o.host === '::' ? 'localhost' : o.host;
+    broker.publicUrl = `http://${host}:${port}`;
+  }
   return {
-    port, hub,
+    port, hub, broker,
     close: () => new Promise<void>(res => {
       clearInterval(heartbeat);
       for (const ws of wss.clients) ws.terminate();
