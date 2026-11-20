@@ -4,7 +4,7 @@ name: Website
 # One-time setup: Settings → Pages → Source: GitHub Actions. Custom domain: see apps/web/README.md.
 on:
   push:
-    branches: [main]
+    branches: [master, main]
     paths: ['apps/web/**', '.github/workflows/pages.yml']
   workflow_dispatch:
 

@@ -16,10 +16,11 @@ npx serve apps/web/public
 ## Publishing at bibbly.io
 
 `.github/workflows/pages.yml` publishes `public/` to GitHub Pages on every push
-to `main` that touches this folder (or run it by hand from the Actions tab).
+to `master` (or `main`) that touches this folder; you can also run it by hand
+from the Actions tab.
 
 1. In the repository: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
-2. Push to `main`. The site appears at `https://<owner>.github.io/<repo>/`.
+2. Push to `master`, or run the **Website** workflow by hand. The site appears at `https://<owner>.github.io/<repo>/`.
 3. For the custom domain, you need to own `bibbly.io`. Then:
    - Verify the domain for your account: **GitHub Settings → Pages → Add a domain**.
    - At your DNS provider, point the apex at GitHub Pages: `A` records `185.199.108.153`, `185.199.109.153`, `185.199.110.153`, `185.199.111.153` (and `AAAA` `2606:50c0:8000::153` … `2606:50c0:8003::153`), plus a `CNAME` for `www` to `<owner>.github.io`.
